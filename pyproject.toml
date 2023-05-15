@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chem-filters"
+dynamic = ["version"]
+description = "A Python package wrapping several chemical structure filtering utilities."
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.7"# TODO: test...
+license = { file = "LICENSE" }
+keywords = ["chemical structure", "filtering", "cheminformatics", "pains"]
+authors = [{ name = "David Araripe", email = "david.araripe17@gmail.com" }]
+maintainers = [{ name = "David Araripe", email = "david.araripe17@gmail.com" }]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent", # To test...
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.7",
+]
+
+dependencies = [
+    "pandas",
+    "rdkit >= 2023.03.1",
+    "pepsift @ git+https://github.com/OlivierBeq/PepSift.git#master",
+    "chembl_structure_pipeline >= 1.2.0",
+    "molspotter @ git+https://github.com/OlivierBeq/molspotter.git#master",
+    "molbloom @ git+https://github.com/whitead/molbloom.git#master"
+]
+
+[project.optional-dependencies]
+dev = ["tox", "ruff", "isort", "black"]
+
+[project.urls]
+homepage = "https://github.com/David-Araripe/chemFilters"
+repository = "https://github.com/David-Araripe/chemFilters"
+# documentation = "https://readthedocs.org" TODO
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "chemFilters.__version__"}
+
+[tool.ruff]
+line-length = 88
+update-check = false
+target-version = "py38"
+fix = true
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+target-version = ['py38', 'py39']
+required-version = '23.1.0'
+exclude = '''
+(
+    asv_bench/env
+  | \.egg
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.nox
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | setup.py
+)
+'''
