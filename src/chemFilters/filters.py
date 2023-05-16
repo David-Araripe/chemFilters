@@ -6,11 +6,9 @@ from typing import List
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import rdkit
-from matplotlib.cm import ScalarMappable
+from matplotlib import cm
 from PIL import Image
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
@@ -37,29 +35,28 @@ class RDKitFilters:
             raise ValueError(f"Filter type {self.filterType} not available.")
         return getattr(FilterCatalogParams.FilterCatalogs, self.filterType)
 
-    def _filterFunc(self, mol: rdkit.Chem.rdchem.Mol):
+    def _filterFunc(self, mol: Chem.Mol):
         matches = self.filterParams.GetMatches(mol)
         filterMatches = self.filterParams.GetFilterMatches(mol)
 
         description = [m.GetDescription() for m in matches]
-        print(dir(filterMatches[0]))
         substructs = [m.filterMatch.GetPattern() for m in filterMatches]
         return description, substructs
 
-    def filterCompounds(self, mols: List[rdkit.Chem.rdchem.Mol]):
+    def filterCompounds(self, mols: List[Chem.Mol]):
         with Pool(self.njobs) as p:
             p.map()
 
-    def lazyFilterCompounds(self, mols: List[rdkit.Chem.rdchem.Mol]):
+    def lazyFilterCompounds(self, mols: List[Chem.Mol]):
         with Pool(self.njobs) as p:
             p.imap()
 
     @staticmethod
     def renderColoredMatches(
-        mol,
+        mol: Chem.Mol,
         description,
         substructs,
-        cmap="viridis",
+        cmap="rainbow",
         alpha=0.5,
         ax=None,
         molSize=(500, 500),
@@ -67,6 +64,9 @@ class RDKitFilters:
         """Take descriptions and substructures output from RDKitFilters._filterFunc
         and renders them on the molecular structure, coloring the substructures and
         adding labels according to the descriptions.
+
+        Note: in case of overlap between colors, the final color corresponds to the
+        their respective geometric mean.
 
         Args:
             mol: rdkit molecule object.
@@ -90,17 +90,33 @@ class RDKitFilters:
                 log_a = np.log(arr)
             return np.exp(np.average(log_a, axis=axis))
 
-        # TODO: Check first what are the unique descriptions
-        # and map the same substructures to the same color
-        smarts = [Chem.MolToSmarts(sub) for sub in substructs]
+        qualitative_cmaps = [
+            "Pastel1",
+            "Pastel2",
+            "Paired",
+            "Accent",
+            "Dark2",
+            "Set1",
+            "Set2",
+            "Set3",
+            "tab10",
+            "tab20",
+            "tab20b",
+            "tab20c",
+        ]
 
+        smarts = [Chem.MolToSmarts(sub) for sub in substructs]
         unique_smarts, indices = np.unique(smarts, return_index=True)
         unique_descrip = [description[i] for i in indices]
 
-        scalar_mappable = ScalarMappable(cmap=cmap)
-        colors = scalar_mappable.to_rgba(
-            range(len(unique_smarts)), alpha=alpha
-        ).tolist()
+        if cmap in qualitative_cmaps:
+            # Unpack colors and add alpha
+            colors = [tuple([*col] + [alpha]) for col in cm.get_cmap("tab10").colors]
+        else:
+            scalar_mappable = cm.ScalarMappable(cmap=cmap)
+            colors = scalar_mappable.to_rgba(
+                range(len(unique_smarts)), alpha=alpha
+            ).tolist()
         color_dict = {}
         patches = []
 
@@ -111,30 +127,21 @@ class RDKitFilters:
             ax = ax.gca()
 
         for smarts, descr, color in zip(unique_smarts, unique_descrip, colors):
-            patches.append(mpatches.Patch(color=color, label=descr))  # for the label
+            # Create the patches that are used for the labels
+            patches.append(
+                mpatches.Patch(facecolor=color, label=descr, edgecolor="black")
+            )
             pttrn = Chem.MolFromSmarts(smarts)
             matches = mol.GetSubstructMatch(pttrn)
             for match in matches:
-                if "__iter__" not in dir(match):
-                    if match in color_dict.keys():
-                        new_color = geometric_mean(
-                            np.vstack([color_dict[match], color])
-                        )
-                        color_dict.update({match: new_color})
-                    else:
-                        color_dict.update({match: color})
+                if match in color_dict.keys():
+                    color_dict.update({match: np.vstack([color_dict[match], color])})
                 else:
-                    print("hey I got multiple matches!")
-                    for atom_index in match:
-                        if match in color_dict.keys():
-                            new_color = geometric_mean(
-                                np.vstack([color_dict[match], color])
-                            )
-                            color_dict.update({match: new_color})
-                        else:
-                            color_dict.update({match: color})
-
-        color_dict = {k: tuple(v) for k, v in color_dict.items()}  # should be tuples
+                    color_dict.update({match: np.array(color)})
+        color_dict = {
+            k: tuple(geometric_mean(v)) if v.ndim > 1 else tuple(v)
+            for k, v in color_dict.items()
+        }  # should be tuples
         drawer.DrawMolecule(
             mol, highlightAtoms=color_dict.keys(), highlightAtomColors=color_dict
         )
@@ -142,7 +149,7 @@ class RDKitFilters:
         img = Image.open(BytesIO(drawer.GetDrawingText()))
         ax.legend(
             handles=patches,
-            bbox_to_anchor=(1.04, 0),
+            bbox_to_anchor=(1.04, 0.2),
             loc="lower left",
             borderaxespad=0,
             frameon=False,
@@ -153,7 +160,17 @@ class RDKitFilters:
         return fig, ax
 
     @staticmethod
-    def renderMatches(mol, substructs):
+    def renderMatches(mol: Chem.Mol, substructs, molSize=(500, 500)) -> Image:
+        """Render the substructures on the molecules using default RDKit coloring.
+
+        Args:
+            mol: molecule to be rendered.
+            substructs: substructures output from RDKitFilters._filterFunc.
+            molSize: final image size. Defaults to (500, 500).
+
+        Returns:
+            PIL.Image with the molecule and the highlighted substructures.
+        """
         hit_bonds = []
         hit_atoms = []
         if "__iter__" not in dir(substructs):
@@ -169,7 +186,7 @@ class RDKitFilters:
                 aid2 = hit_ats[bond.GetEndAtomIdx()]
                 hit_bonds.append(mol.GetBondBetweenAtoms(aid1, aid2).GetIdx())
 
-        drawer = rdMolDraw2D.MolDraw2DCairo(500, 500)
+        drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0], molSize[1])
         drawer.DrawMolecule(mol, highlightAtoms=hit_atoms, highlightBonds=hit_bonds)
         drawer.FinishDrawing()
         img = Image.open(BytesIO(drawer.GetDrawingText()))
