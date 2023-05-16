@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import warnings
+from functools import partial
 from io import BytesIO
 from multiprocessing import Pool
 from typing import List
@@ -6,11 +8,14 @@ from typing import List
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from matplotlib import cm
 from PIL import Image
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
+
+from .utils import getCatalogFilterMatch, getCatalogMatch
 
 
 class RDKitFilters:
@@ -22,7 +27,8 @@ class RDKitFilters:
     @property
     def availableFilters(self):
         """List of available filters from RDKit FilterCatalogs."""
-        return [m for m in dir(FilterCatalogParams.FilterCatalogs) if m.isupper()]
+        allFilt = FilterCatalogParams.FilterCatalogs.ALL
+        return [m for m in dir(allFilt) if any([m.isupper(), m.startswith("CHEMBL_")])]
 
     @property
     def filterParams(self):
@@ -35,33 +41,52 @@ class RDKitFilters:
             raise ValueError(f"Filter type {self.filterType} not available.")
         return getattr(FilterCatalogParams.FilterCatalogs, self.filterType)
 
-    def _filterFunc(self, mol: Chem.Mol):
-        matches = self.filterParams.GetMatches(mol)
-        filterMatches = self.filterParams.GetFilterMatches(mol)
-
-        description = [m.GetDescription() for m in matches]
-        substructs = [m.filterMatch.GetPattern() for m in filterMatches]
-        return description, substructs
-
-    def filterCompounds(self, mols: List[Chem.Mol]):
+    def filterMols(self, mols: List[Chem.Mol]):
+        if "__iter__" not in dir(mols):
+            mols = [mols]
         with Pool(self.njobs) as p:
-            p.map()
+            substructs = p.map(
+                partial(getCatalogFilterMatch, catalog=self.filterParams), mols
+            )
+            filter_names, descriptions = zip(
+                *p.map(partial(getCatalogMatch, catalog=self.filterParams), mols)
+            )
+        return filter_names, descriptions, substructs
 
-    def lazyFilterCompounds(self, mols: List[Chem.Mol]):
-        with Pool(self.njobs) as p:
-            p.imap()
+    def flagDataframe(self, mols: List[Chem.Mol]):
+        if self.filterType != "ALL":
+            warnings.warn(
+                f"Filter type {self.filterType} is not 'ALL'. "
+                "Some filters may not be applied."
+            )
+        filter_names, descriptions, substructs = self.filterMols(mols)
+        columns = [c for c in self.availableFilters if c not in ["ALL"]]
+        df = pd.DataFrame(
+            list(zip(filter_names, descriptions)),
+            columns=["Names", "Descriptions"],
+        )
+        final_df = pd.DataFrame(columns=columns)
+        for idx, row in df.iterrows():
+            label_dict = dict(zip(row["Names"], row["Descriptions"]))
+            final_df = pd.concat(
+                [final_df, pd.DataFrame(label_dict, index=[0])], ignore_index=True
+            )
+        final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
+        for col in final_df.columns:
+            final_df[col] = final_df[col].apply(lambda x: ";".join(x))
+        return final_df.replace({"": np.nan})
 
     @staticmethod
     def renderColoredMatches(
         mol: Chem.Mol,
-        description,
+        descriptions,
         substructs,
         cmap="rainbow",
         alpha=0.5,
         ax=None,
         molSize=(500, 500),
     ):
-        """Take descriptions and substructures output from RDKitFilters._filterFunc
+        """Take descriptions and substructures output from RDKitFilters.filterMols
         and renders them on the molecular structure, coloring the substructures and
         adding labels according to the descriptions.
 
@@ -70,8 +95,8 @@ class RDKitFilters:
 
         Args:
             mol: rdkit molecule object.
-            description: description (`output[0]`) from RDKitFilters._filterFunc.
-            substructs: substructures (`output[1]`) from RDKitFilters._filterFunc.
+            descriptions: descriptions (`output[0]`) from RDKitFilters.filterMols.
+            substructs: substructures (`output[1]`) from RDKitFilters.filterMols.
             cmap: colormap for the substructures. Defaults to "viridis".
             alpha: transparency of the colors. Defaults to 0.5.
             ax: if desired, add the results to an existing axis. Defaults to None.
@@ -107,7 +132,7 @@ class RDKitFilters:
 
         smarts = [Chem.MolToSmarts(sub) for sub in substructs]
         unique_smarts, indices = np.unique(smarts, return_index=True)
-        unique_descrip = [description[i] for i in indices]
+        unique_descrip = [descriptions[i] for i in indices]
 
         if cmap in qualitative_cmaps:
             # Unpack colors and add alpha
@@ -149,7 +174,7 @@ class RDKitFilters:
         img = Image.open(BytesIO(drawer.GetDrawingText()))
         ax.legend(
             handles=patches,
-            bbox_to_anchor=(1.04, 0.2),
+            bbox_to_anchor=(1.05, 0.25),
             loc="lower left",
             borderaxespad=0,
             frameon=False,
@@ -165,7 +190,7 @@ class RDKitFilters:
 
         Args:
             mol: molecule to be rendered.
-            substructs: substructures output from RDKitFilters._filterFunc.
+            substructs: substructures output from RDKitFilters.filterMols.
             molSize: final image size. Defaults to (500, 500).
 
         Returns:
