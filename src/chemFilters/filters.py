@@ -104,7 +104,8 @@ class RDKitFilters:
                 "Some filters may not be applied."
             )
         filter_names, descriptions, substructs = self.filterMols(mols)
-        failed_flag = np.array([True if x is not None else False for x in filter_names])
+        if self.from_smi:
+            failed_flag = [True if x is not None else False for x in filter_names]
         columns = [c for c in self.availableFilters if c not in ["ALL"]]
         df = pd.DataFrame(
             list(zip(filter_names, descriptions)),
@@ -119,8 +120,9 @@ class RDKitFilters:
         final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
         for col in final_df.columns:
             final_df[col] = final_df[col].apply(lambda x: ";".join(x))
-        if any(failed_flag):
-            final_df["FailedFlag"] = failed_flag
+        if self.from_smi:
+            if any(failed_flag):
+                final_df["FailedFlag"] = failed_flag
         return final_df.replace({"": np.nan})
 
     @staticmethod
