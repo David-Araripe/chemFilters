@@ -3,7 +3,7 @@ import warnings
 from functools import partial
 from io import BytesIO
 from multiprocessing import Pool
-from typing import List
+from typing import List, Tuple, Union
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -19,7 +19,15 @@ from .utils import getCatalogFilterMatch, getCatalogMatch
 
 
 class RDKitFilters:
-    def __init__(self, filterType="ALL", njobs=1) -> None:
+    def __init__(self, filterType="ALL", njobs=1, from_smi: bool = False) -> None:
+        """Initiaze RDKitFilters object.
+
+        Args:
+            filterType: type of filter from RDKit FilterCatalogs. Defaults to "ALL".
+            njobs: number of jobs if wanted to run things in parallel. Defaults to 1.
+            from_smi = if True, will do the conversion from SMILES to RDKit Mol object.
+        """
+        self.from_smi = from_smi
         self.filterType = filterType
         self.filter = self._getFilter()
         self.njobs = njobs
@@ -31,35 +39,72 @@ class RDKitFilters:
         return [m for m in dir(allFilt) if any([m.isupper(), m.startswith("CHEMBL_")])]
 
     @property
-    def filterParams(self):
+    def _filterParams(self):
+        """The updated RDKit FilterCatalogParams object used for filtering."""
         catalog = FilterCatalogParams()
         catalog.AddCatalog(self.filter)
         return FilterCatalog(catalog)
 
     def _getFilter(self):
+        """Get the filter from RDKit FilterCatalogs."""
         if self.filterType not in self.availableFilters:
             raise ValueError(f"Filter type {self.filterType} not available.")
         return getattr(FilterCatalogParams.FilterCatalogs, self.filterType)
 
-    def filterMols(self, mols: List[Chem.Mol]):
+    def filterMols(
+        self, mols: List[Union[Chem.Mol, str]]
+    ) -> Tuple[List[List[str]], List[List[str]], List[List[Chem.Mol]]]:
+        """Filter molecules using RDKit FilterCatalogs.
+
+        Args:
+            mols: list of RDKit Mol objects or SMILES strings if self.from_smi is True.
+
+        Returns:
+            filter_names: list of filter names that were matched.
+            descriptions: list of filter descriptions that were matched.
+            substructs: list of substructures that were matched.
+        """
         if "__iter__" not in dir(mols):
             mols = [mols]
         with Pool(self.njobs) as p:
             substructs = p.map(
-                partial(getCatalogFilterMatch, catalog=self.filterParams), mols
+                partial(
+                    getCatalogFilterMatch,
+                    catalog=self._filterParams,
+                    from_smi=self.from_smi,
+                ),
+                mols,
             )
             filter_names, descriptions = zip(
-                *p.map(partial(getCatalogMatch, catalog=self.filterParams), mols)
+                *p.map(
+                    partial(
+                        getCatalogMatch,
+                        catalog=self._filterParams,
+                        from_smi=self.from_smi,
+                    ),
+                    mols,
+                )
             )
         return filter_names, descriptions, substructs
 
-    def flagDataframe(self, mols: List[Chem.Mol]):
+    def flagDataframe(self, mols: List[Union[Chem.Mol, str]]) -> pd.DataFrame:
+        """Flag molecules using the defined RDKit FilterCatalogs. If `self.from_smi` is
+        true and one of the SMILES is invalid, will add a column `FailedFlag` with a
+        a boolean flag.
+
+        Args:
+            mols: list of RDKit Mol objects or SMILES strings if self.from_smi is True.
+
+        Returns:
+            pd.DataFrame: dataframe with columns as filter types and rows as molecules.
+        """
         if self.filterType != "ALL":
             warnings.warn(
                 f"Filter type {self.filterType} is not 'ALL'. "
                 "Some filters may not be applied."
             )
         filter_names, descriptions, substructs = self.filterMols(mols)
+        failed_flag = np.array([True if x is not None else False for x in filter_names])
         columns = [c for c in self.availableFilters if c not in ["ALL"]]
         df = pd.DataFrame(
             list(zip(filter_names, descriptions)),
@@ -74,15 +119,17 @@ class RDKitFilters:
         final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
         for col in final_df.columns:
             final_df[col] = final_df[col].apply(lambda x: ";".join(x))
+        if any(failed_flag):
+            final_df["FailedFlag"] = failed_flag
         return final_df.replace({"": np.nan})
 
     @staticmethod
     def renderColoredMatches(
         mol: Chem.Mol,
-        descriptions,
-        substructs,
-        cmap="rainbow",
-        alpha=0.5,
+        descriptions: List[str],
+        substructs: List[Chem.Mol],
+        cmap: str = "rainbow",
+        alpha: float = 0.5,
         ax=None,
         molSize=(500, 500),
     ):
