@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+"""A module for filtering molecules using RDKit FilterCatalogs."""
+
 import warnings
 from functools import partial
 from io import BytesIO

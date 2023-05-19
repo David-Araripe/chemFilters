@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+"""Utility functions to be used in different modules of the chemFilters package."""
+
 import warnings
 
+from chembl_structure_pipeline import standardizer as chembl_std
 from rdkit import Chem
 
 
