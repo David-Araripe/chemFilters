@@ -2,7 +2,7 @@
 """Utility functions to be used by the chemFilters.chem subpackage."""
 
 from rdkit import Chem, RDLogger
-from rdkit.Chem import Descriptors, inchi
+from rdkit.Chem import inchi
 
 
 def RDKitVerbosityON():
