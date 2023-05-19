@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used in different modules of the chemFilters package."""
-
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from multiprocessing import Pool
+from importlib.utis import find_spec
 from typing import List
 
 import pandas as pd
 import pkg_resources
 from smallworld_api import SmallWorld
+
+from chemFilters.chem.standardizers import InchiHandling, SmilesStandardizer
 
 
 class SmilesSearcher:
@@ -55,7 +56,11 @@ class SmilesSearcher:
 
     @property
     def _myPreferredParams(self) -> dict:
-        return {"dist": 5, "db": self.sw.REAL_dataset}
+        return {
+            "dist": 3,  # I want molecules that are fairly similar to the query
+            "db": self.sw.REAL_dataset,
+            "length": 20,  # I want to get 20 results
+        }
 
     def setSearchParams(self, params: dict):
         """Set the parameters for the Small World API.
@@ -72,10 +77,14 @@ class SmilesSearcher:
         Returns:
             final_df: pd.DataFrame with the results of the search.
         """
-        # TODO: implement the smiles standardization / inchi key handling
-        # if self.standardize_smiles:
-        #     with Pool(self.n_jobs) as pool:
-        #         smiles_list = pool.map(standardizer.standardize_smiles, smiles_list)
+        if self.standardize_smiles:
+            print("Standardizing SMILES...")
+            standardizer = SmilesStandardizer(n_jobs=self.n_jobs)
+            smiles_list = standardizer(smiles_list)
+            print("Calculating InchiKeys...")
+            inchi_calculator = InchiHandling("inchikey", n_jobs=self.n_jobs)
+            inchikeys = inchi_calculator(smiles_list)
+            idx_mapping = {k: idx for idx, k in enumerate(inchikeys)}
 
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
             futures = [
@@ -85,5 +94,62 @@ class SmilesSearcher:
             results = []
             for future in as_completed(futures):
                 results.append(future.result())
+
         final_df = pd.concat(results, ignore_index=True)
+        if self.standardize_smiles:
+            final_df = final_df.assign(
+                qrySmiles_std=lambda x: standardizer(x["qrySmiles"]),
+                qryInchiKey_std=lambda x: inchi_calculator(x["qrySmiles_std"]),
+                submission_idx=lambda x: x["qryInchiKey_std"].map(idx_mapping),
+            ).sort_values("submission_idx")
+        return final_df
+
+    def lazyMultiThreadSearch(
+        self, smiles_list: list, output_file: str, **search_params
+    ) -> pd.DataFrame:
+        """Search for a list of SMILES in Small World using multiple threads in a lazy
+        way. This means that the results will be written to disk as they are obtained to
+        prevent the rest of the results being lost from a crash.
+
+        Args:
+            smiles_list: list of SMILES to search in Small World.
+            output_file: path to the output file where the results will be written.
+                Note: this method requires the optional dependency pytables, as .csv
+                doesn't directly support lazy writing.
+
+        Returns:
+            final_df: pd.DataFrame with the results of the search.
+        """
+        if not find_spec("tables"):
+            raise ImportError(
+                "Lazy writing requires the optional dependency pytables."
+                "To install it, run: \npython -m pip install tables"
+            )
+        if self.standardize_smiles:
+            print("Standardizing SMILES...")
+            standardizer = SmilesStandardizer(n_jobs=self.n_jobs)
+            smiles_list = standardizer(smiles_list)
+            print("Calculating InchiKeys...")
+            inchi_calculator = InchiHandling("inchikey", n_jobs=self.n_jobs)
+            inchikeys = inchi_calculator(smiles_list)
+            idx_mapping = {k: idx for idx, k in enumerate(inchikeys)}
+
+        with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
+            futures = [
+                executor.submit(self.sw.search, smi, **search_params)
+                for smi in smiles_list
+            ]
+            results = []
+            for future in as_completed(futures):
+                result = future.result()
+                # append results to the output file
+                result.to_hdf(output_file, "results", append=True)
+
+        final_df = pd.concat(results, ignore_index=True)
+        if self.standardize_smiles:
+            final_df = final_df.assign(
+                qrySmiles_std=lambda x: standardizer(x["qrySmiles"]),
+                qryInchiKey_std=lambda x: inchi_calculator(x["qrySmiles_std"]),
+                submission_idx=lambda x: x["qryInchiKey_std"].map(idx_mapping),
+            ).sort_values("submission_idx")
         return final_df
