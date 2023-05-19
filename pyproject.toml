@@ -24,12 +24,14 @@ classifiers = [
 ]
 
 dependencies = [
+    "tqdm",
     "pandas",
     "rdkit >= 2023.03.1",
     "pepsift @ git+https://github.com/OlivierBeq/PepSift.git#master",
     "chembl_structure_pipeline >= 1.2.0",
     "molspotter @ git+https://github.com/OlivierBeq/molspotter.git#master",
-    "molbloom @ git+https://github.com/whitead/molbloom.git#master"
+    "molbloom @ git+https://github.com/whitead/molbloom.git#master",
+    "smallworld-api @ git+https://github.com/matteoferla/Python_SmallWorld_API.git"
 ]
 
 [project.optional-dependencies]
