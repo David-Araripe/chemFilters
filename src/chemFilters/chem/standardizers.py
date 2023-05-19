@@ -29,7 +29,7 @@ class SmilesStandardizer:
     def __init__(
         self,
         method: str = "chembl",
-        njobs: int = 5,
+        n_jobs: int = 5,
         isomeric: bool = True,
         progress: bool = True,
         verbose: bool = False,
@@ -40,7 +40,7 @@ class SmilesStandardizer:
             method: which standardization pipeline to use. Current supports "chembl" and
                 "papyrus", but the latter is an optional dependency. Defaults to
                 "chembl".
-            njobs: number of jobs running in parallel. Defaults to 5.
+            n_jobs: number of jobs running in parallel. Defaults to 5.
             isomeric: output smiles with isomeric information. Defaults to True.
             progress: display a progress bar with tqdm. Defaults to True.
             verbose: if false, silences rdkit errors. Defaults to False.
@@ -68,7 +68,7 @@ class SmilesStandardizer:
                 )
         else:
             raise ValueError(f"Invalid SMILES standardizing method: {method}")
-        self.njobs = njobs
+        self.n_jobs = n_jobs
         self.progress = progress
         self.verbose = verbose
 
@@ -84,7 +84,7 @@ class SmilesStandardizer:
         """
         if not self.verbose:
             RDKitVerbosityOFF()
-        with Pool(self.njobs) as p:
+        with Pool(self.n_jobs) as p:
             if self.progress:
                 vals = list(tqdm(p.imap(self.standardizer, smiles), total=len(smiles)))
             else:
@@ -161,7 +161,7 @@ class InchiHandling:
     def __init__(
         self,
         convert_to: str,
-        njobs: int = 5,
+        n_jobs: int = 5,
         progress: bool = True,
         verbose: bool = False,
     ) -> None:
@@ -170,7 +170,7 @@ class InchiHandling:
         Args:
             convert_to: what to convert the smiles to. Can be "inchi", "inchikey" or
                 "connectivity".
-            njobs: Number of jobs for processing in parallel. Defaults to 5.
+            n_jobs: Number of jobs for processing in parallel. Defaults to 5.
             progress: whether to show the progress bar. Defaults to True.
             verbose: if false, will hide the rdkit warnings. Defaults to False.
 
@@ -185,14 +185,14 @@ class InchiHandling:
             self.converter = partial(smilesToConnectivity, verbose=verbose)
         else:
             raise ValueError(f"Invalid convertion method: {self.convert_to}")
-        self.njobs = njobs
+        self.n_jobs = n_jobs
         self.progress = progress
         self.verbose = verbose
 
     def __call__(self, smiles: list) -> list:
         if not self.verbose:
             RDKitVerbosityOFF()
-        with Pool(self.njobs) as p:
+        with Pool(self.n_jobs) as p:
             if self.progress:
                 vals = list(tqdm(p.imap(self.converter, smiles), total=len(smiles)))
             else:
