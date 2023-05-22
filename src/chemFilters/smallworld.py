@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used in different modules of the chemFilters package."""
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from importlib.utis import find_spec
+from importlib.util import find_spec
 from typing import List
 
 import pandas as pd
