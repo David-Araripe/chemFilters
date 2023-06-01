@@ -97,14 +97,11 @@ class SmilesStandardizer:
     def papyrusSmilesStandardizer(
         smi: str,
         isomeric: bool = True,
-        std_kwargs={
-            "small_molecule_min_mw": 175,
-            "small_molecule_max_mw": 950,
-        },
+        **kwargs,
     ) -> str:
         """Uses the Papyrus standardizer to standardize a SMILES string. By default,
         this standardization pipeline removes stereocenters, so beware of the isomeric
-        flag.
+        flag. Accepts extra keyword arguments that will be passed to the standardizer.
 
         For more information: https://github.com/OlivierBeq/Papyrus_structure_pipeline
 
@@ -120,7 +117,7 @@ class SmilesStandardizer:
         except TypeError:
             return None
         try:
-            standard_mol = papyrus_std.standardize(mol, **std_kwargs)
+            standard_mol = papyrus_std.standardize(mol, **kwargs)
         except RuntimeError:
             print("Error standardizing molecule: ", smi)
             standard_mol = None
@@ -132,8 +129,9 @@ class SmilesStandardizer:
         return standard_smi
 
     @staticmethod
-    def chemblSmilesStandardizer(smi: str, isomeric: bool = True) -> str:
-        """Uses the ChEMBL standardizer to standardize a SMILES string.
+    def chemblSmilesStandardizer(smi: str, isomeric: bool = True, **kwargs) -> str:
+        """Uses the ChEMBL standardizer to standardize a SMILES string. Accepts extra
+        keyword arguments that will be passed to the standardizer
 
         Args:
             smi: single smiles string.
@@ -146,7 +144,7 @@ class SmilesStandardizer:
             mol = Chem.MolFromSmiles(smi)
         except TypeError:
             return None
-        standard_mol = chembl_std.standardize_mol(mol)
+        standard_mol = chembl_std.standardize_mol(mol, **kwargs)
         standard_smi = Chem.MolToSmiles(
             standard_mol, kekuleSmiles=False, canonical=True, isomericSmiles=isomeric
         )
