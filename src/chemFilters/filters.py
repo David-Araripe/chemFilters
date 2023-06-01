@@ -90,9 +90,7 @@ class RDKitFilters:
         return filter_names, descriptions, substructs
 
     def flagDataframe(self, mols: List[Union[Chem.Mol, str]]) -> pd.DataFrame:
-        """Flag molecules using the defined RDKit FilterCatalogs. If `self.from_smi` is
-        true and one of the SMILES is invalid, will add a column `FailedFlag` with a
-        a boolean flag.
+        """Flag molecules using the defined RDKit FilterCatalogs.
 
         Args:
             mols: list of RDKit Mol objects or SMILES strings if self.from_smi is True.
@@ -106,9 +104,8 @@ class RDKitFilters:
                 "Some filters may not be applied."
             )
         filter_names, descriptions, substructs = self.filterMols(mols)
-        if self.from_smi:
-            failed_flag = [True if x is not None else False for x in filter_names]
-        columns = [c for c in self.availableFilters if c not in ["ALL"]]
+        nope = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of filters
+        columns = [c for c in self.availableFilters if c not in nope]
         df = pd.DataFrame(
             list(zip(filter_names, descriptions)),
             columns=["Names", "Descriptions"],
@@ -122,9 +119,6 @@ class RDKitFilters:
         final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
         for col in final_df.columns:
             final_df[col] = final_df[col].apply(lambda x: ";".join(x))
-        if self.from_smi:
-            if any(failed_flag):
-                final_df["FailedFlag"] = failed_flag
         return final_df.replace({"": np.nan})
 
     @staticmethod
