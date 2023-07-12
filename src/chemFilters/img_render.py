@@ -33,7 +33,7 @@ class FontManager:
             wsl: If you're using windows subsystem for linux. Allows for using fonts
                 installed in windows. Defaults to "auto".
             include_plt: Includes fonts available in matplotlib. Defaults to True.
-        """        
+        """
         self.include_plt = include_plt
         self.wsl = wsl
         self.fonts = None
@@ -114,129 +114,6 @@ class FontManager:
         return font_dict
 
 
-def molgrid_png(
-    smiles: list,
-    labels: Optional[list] = None,
-    n_cols: int = None,
-    img_size: tuple = (300, 300),
-    match_structure: Optional[Union[str, Chem.Mol]] = None,
-    font_name: str = "DejaVu Sans",
-    font_size: int = 15,
-    n_jobs: int = 1,
-    bw=False,
-    label_loc="bottom",
-) -> PIL.Image.Image:
-    """
-    Args:
-        smiles: list of smiles to display.
-        labels: list of labels to be written on the mol images. Defaults to None
-        n_cols: N columns with molecules. If None, n_cols = len(smiles).
-            Defaults to None.
-        match_structure: a common structure between `smiles` used to generate the
-            matching 2D images. If None, 2D rendering won't match. Defaults to None.
-        font_name: Path to a font to be used by the function. Defaults to None.
-        font_size: Font size. Defaults to 15.
-        n_jobs: Generate mol images in parallel. Defaults to 1.
-        bw: if True, final image will be converted to gray scale. Defaults to False.
-        label_loc: Location of the label. Defaults to "bottom".
-
-    Returns:
-        PIL.Image.Image
-    """
-
-    def list_split(list_a, chunk_size):
-        """
-        Returns a generator with a determined chunk size over list_a.
-        Used to organize the figures in the correct `n_cols` format.
-        """
-        for i in range(0, len(list_a), chunk_size):
-            yield list_a[i : i + chunk_size]
-
-    images = list()
-    if match_structure:
-        images = smiles_img_matching_pose(
-            smiles, match_struct=match_structure, size=img_size
-        )
-    else:
-        with Pool(n_jobs) as pool:
-            images = pool.map(partial(smi_to_img, size=img_size), smiles)
-
-    if labels is not None:
-        # Setting the configuration of the font
-        try:
-            importlib.import_module("matplotlib")
-            include_plt = True
-        except ModuleNotFoundError:
-            include_plt = False
-        fm = FontManager(include_plt=include_plt)
-
-        if font_name is None:
-            font = ImageFont.load_default()
-        elif font_name not in fm.available_fonts.keys():
-            raise ValueError(
-                "Font not available. Try one of the following: \n"
-                f"{fm.available_fonts.keys()}"
-            )
-        else:
-            font_path = fm.available_fonts[font_name]
-            font = ImageFont.truetype(str(font_path), font_size)
-
-        img_width, img_height = images[0].size
-        # Writing the labels to each of the images
-        for img, text in zip(images, labels):
-            # Getting the size of the text to center the loation of the text
-            font_width, font_height = font.getsize(text)
-            adjusted_fontsize = font_size
-            if font_width > img_width:
-                # TODO: improve this so we can instead separate the text in two lines
-                while True:
-                    adjusted_fontsize -= 1
-                    adjusted_font = ImageFont.truetype(
-                        str(font_path), adjusted_fontsize
-                    )
-                    font_width, font_height = font.getsize(text)
-                    if font_width < img_width:
-                        break
-            else:
-                font = ImageFont.truetype(str(font_path), font_size)
-
-            if label_loc not in ["top", "bottom"]:
-                raise ValueError("label_loc must be either 'top' or 'bottom'.")
-            if label_loc == "top":
-                centered_w = (img_width - font_width) / 2
-                centered_h = (img_height - font_height) / 99
-            elif label_loc == "bottom":
-                centered_w = (img_width - font_width) / 2
-                centered_h = (img_height - font_height) / 99 * 97
-            draw = ImageDraw.Draw(img)
-            if adjusted_fontsize != font_size:
-                draw.text(
-                    (centered_w, centered_h), text, fill="black", font=adjusted_font
-                )
-            else:
-                draw.text((centered_w, centered_h), text, fill="black", font=font)
-
-    # Splitting the list of images into a list of lists with n_cols
-    if n_cols is None:
-        n_cols = len(smiles)
-    images = list(list_split(images, n_cols))
-    # Appending blank figures so we have the correct vector shapes
-    while len(images[-1]) < len(images[0]):
-        images[-1].append(Image.new("RGB", img_size, color=(255, 255, 255)))
-
-    list_of_hstacked = list()
-    # Creating list of horizontally stacked arrays
-    for sublist in images:
-        list_of_hstacked.append(np.hstack([np.asarray(img) for img in sublist]))
-    # Vertically stacking horizontal arrays
-    for item in list_of_hstacked:
-        final_img = np.vstack([hstack for hstack in list_of_hstacked])
-    # Creating and returning image from array
-    final_img = Image.fromarray(final_img)
-    if bw:
-        final_img = final_img.convert("L")
-    return final_img
-
 def render_colored_matches(
     mol: Chem.Mol,
     descriptions: List[str],
@@ -313,9 +190,7 @@ def render_colored_matches(
 
     for smarts, descr, color in zip(unique_smarts, unique_descrip, colors):
         # Create the patches that are used for the labels
-        patches.append(
-            mpatches.Patch(facecolor=color, label=descr, edgecolor="black")
-        )
+        patches.append(mpatches.Patch(facecolor=color, label=descr, edgecolor="black"))
         pttrn = Chem.MolFromSmarts(smarts)
         matches = mol.GetSubstructMatch(pttrn)
         for match in matches:
@@ -345,34 +220,205 @@ def render_colored_matches(
     return fig, ax
 
 
-def render_matches(mol: Chem.Mol, substructs, molSize=(500, 500)) -> Image:
-    """Render the substructures on the molecules using default RDKit coloring.
+class MolPlotter:
+    def __init__(
+        self,
+        from_smi: bool = True,
+        size: tuple = (500, 500),
+        cmap: str = "rainbow",
+        font_name: str = "DejaVu Sans",
+        font_size: int = 15,
+        label_loc="bottom",
+    ) -> None:
+        self._drawer = rdMolDraw2D.MolDraw2DCairo(size)
+        self._cmap = cmap
+        self._size = size
+        self._from_smi = from_smi
+        self._font_size = font_size
+        self._font_name = font_name
+        self._label_loc = label_loc
 
-    Args:
-        mol: molecule to be rendered.
-        substructs: substructures output from RDKitFilters.filter_mols.
-        molSize: final image size. Defaults to (500, 500).
+    def _add_legends(
+        self,
+        images: List[PIL.Image],
+        labels: List[str],
+    ) -> Image:
+        """Function to add legends to a list of images. The legends are added using PIL
+        and placed according to the `label_loc` parameter.
 
-    Returns:
-        PIL.Image with the molecule and the highlighted substructures.
-    """
-    hit_bonds = []
-    hit_atoms = []
-    if "__iter__" not in dir(substructs):
-        substructs = [substructs]
-    for patt in substructs:
-        smarts = Chem.MolToSmarts(patt)
-        pttrn = Chem.MolFromSmarts(smarts)
-        hit_ats = list(mol.GetSubstructMatch(pttrn))
-        hit_atoms = hit_atoms + hit_ats
+        Args:
+            images: list of PIL images.
+            labels: list of labels to be added to the images.
+            font_name: name of the font to be used. Depend on being found by the
+                FontManager class. Defaults to "DejaVu Sans".
+            font_size: size of the font. Defaults to 15.
+            label_loc: position of the label. Defaults to "bottom".
 
-        for bond in pttrn.GetBonds():
-            aid1 = hit_ats[bond.GetBeginAtomIdx()]
-            aid2 = hit_ats[bond.GetEndAtomIdx()]
-            hit_bonds.append(mol.GetBondBetweenAtoms(aid1, aid2).GetIdx())
+        Raises:
+            ValueError: if the font or the label_loc are not available
 
-    drawer = rdMolDraw2D.MolDraw2DCairo(molSize[0], molSize[1])
-    drawer.DrawMolecule(mol, highlightAtoms=hit_atoms, highlightBonds=hit_bonds)
-    drawer.FinishDrawing()
-    img = Image.open(BytesIO(drawer.GetDrawingText()))
-    return img
+        Returns:
+            list of the images with the labels added.
+        """
+        try:
+            importlib.import_module("matplotlib")
+            include_plt = True
+        except ModuleNotFoundError:
+            include_plt = False
+        fm = FontManager(include_plt=include_plt)
+
+        if self._font_name is None:
+            font = ImageFont.load_default()
+        elif self._font_name not in fm.available_fonts.keys():
+            raise ValueError(
+                "Font not available. Try one of the following: \n"
+                f"{fm.available_fonts.keys()}"
+            )
+        else:
+            font_path = fm.available_fonts[self._font_name]
+            font = ImageFont.truetype(str(font_path), self._font_size)
+
+        img_width, img_height = images[0].size
+        # Writing the labels to each of the images
+        for img, text in zip(images, labels):
+            # Getting the size of the text to center the loation of the text
+            font_width, font_height = font.getsize(text)
+            adjusted_fontsize = self._font_size
+            if font_width > img_width:
+                # TODO: improve this so we can instead separate the text in two lines
+                while True:
+                    adjusted_fontsize -= 1
+                    adjusted_font = ImageFont.truetype(
+                        str(font_path), adjusted_fontsize
+                    )
+                    font_width, font_height = font.getsize(text)
+                    if font_width < img_width:
+                        break
+            else:
+                font = ImageFont.truetype(str(font_path), self._font_size)
+
+            if self._label_loc not in ["top", "bottom"]:
+                raise ValueError("label_loc must be either 'top' or 'bottom'.")
+            if self._label_loc == "top":
+                centered_w = (img_width - font_width) / 2
+                centered_h = (img_height - font_height) / 99
+            elif self._label_loc == "bottom":
+                centered_w = (img_width - font_width) / 2
+                centered_h = (img_height - font_height) / 99 * 97
+            draw = ImageDraw.Draw(img)
+            if adjusted_fontsize != self._font_size:
+                draw.text(
+                    (centered_w, centered_h), text, fill="black", font=adjusted_font
+                )
+            else:
+                draw.text((centered_w, centered_h), text, fill="black", font=font)
+        return images
+
+    def plot_mol(self, mol: Chem.Mol) -> Image:
+        self._drawer.DrawMolecule(mol)
+        self._drawer.FinishDrawing()
+        img = Image.open(BytesIO(self._drawer.GetDrawingText()))
+        return img
+
+    def plot_mol_with_matches(self, mol: Chem.Mol, substructs) -> Image:
+        """Render the substructures on the molecules using default RDKit coloring.
+
+        Args:
+            mol: molecule to be rendered.
+            substructs: substructures output from RDKitFilters.filter_mols.
+            molSize: final image size. Defaults to (500, 500).
+
+        Returns:
+            PIL.Image with the molecule and the highlighted substructures.
+        """
+        hit_bonds = []
+        hit_atoms = []
+        if "__iter__" not in dir(substructs):
+            substructs = [substructs]
+        for patt in substructs:
+            smarts = Chem.MolToSmarts(patt)
+            pttrn = Chem.MolFromSmarts(smarts)
+            hit_ats = list(mol.GetSubstructMatch(pttrn))
+            hit_atoms = hit_atoms + hit_ats
+
+            for bond in pttrn.GetBonds():
+                aid1 = hit_ats[bond.GetBeginAtomIdx()]
+                aid2 = hit_ats[bond.GetEndAtomIdx()]
+                hit_bonds.append(mol.GetBondBetweenAtoms(aid1, aid2).GetIdx())
+
+        drawer = rdMolDraw2D.MolDraw2DCairo(*self._size)
+        drawer.DrawMolecule(mol, highlightAtoms=hit_atoms, highlightBonds=hit_bonds)
+        drawer.FinishDrawing()
+        img = Image.open(BytesIO(drawer.GetDrawingText()))
+        return img
+
+    def molgrid_png(
+        self,
+        mols: list,
+        labels: Optional[list] = None,
+        n_cols: int = None,
+        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
+        n_jobs: int = 1,
+        bw: bool = False,
+    ) -> PIL.Image.Image:
+        """
+        Args:
+            mols: list of molecules to display.
+            labels: list of labels to be written on the mol images. Defaults to None
+            n_cols: N columns with molecules. If None, n_cols = len(smiles).
+                Defaults to None.
+            scaff_pose: a common structure between `smiles` used to generate the
+                matching 2D images. If None, 2D rendering won't match. Defaults to None.
+            font_name: Path to a font to be used by the function. Defaults to None.
+            font_size: Font size. Defaults to 15.
+            n_jobs: Generate mol images in parallel. Defaults to 1.
+            bw: if True, final image will be converted to gray scale. Defaults to False.
+            label_loc: Location of the label. Defaults to "bottom".
+
+        Returns:
+            PIL.Image.Image
+        """
+
+        def list_split(list_a, chunk_size):
+            """
+            Returns a generator with a determined chunk size over list_a.
+            Used to organize the figures in the correct `n_cols` format.
+            """
+            for i in range(0, len(list_a), chunk_size):
+                yield list_a[i : i + chunk_size]
+
+        images = list()
+        if scaff_pose:
+            images = smiles_img_matching_pose(
+                mols, match_struct=scaff_pose, size=self._size
+            )
+        else:
+            with Pool(n_jobs) as pool:
+                images = pool.map(partial(smi_to_img, size=self._size), mols)
+
+        if labels is not None:
+            # Putting the fonts on the images
+            images = self._add_legends(
+                self._font_name, self._font_size, self._label_loc
+            )
+
+        # Splitting the list of images into a list of lists with n_cols
+        if n_cols is None:
+            n_cols = len(mols)
+        images = list(list_split(images, n_cols))
+        # Appending blank figures so we have the correct vector shapes
+        while len(images[-1]) < len(images[0]):
+            images[-1].append(Image.new("RGB", self._size, color=(255, 255, 255)))
+
+        list_of_hstacked = list()
+        # Creating list of horizontally stacked arrays
+        for sublist in images:
+            list_of_hstacked.append(np.hstack([np.asarray(img) for img in sublist]))
+        # Vertically stacking horizontal arrays
+        for item in list_of_hstacked:
+            final_img = np.vstack([hstack for hstack in list_of_hstacked])
+        # Creating and returning image from array
+        final_img = Image.fromarray(final_img)
+        if bw:
+            final_img = final_img.convert("L")
+        return final_img
