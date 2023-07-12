@@ -31,7 +31,7 @@ dependencies = [
   "chembl_structure_pipeline >= 1.2.0",
   "molspotter @ git+https://github.com/OlivierBeq/molspotter.git#master",
   "molbloom @ git+https://github.com/whitead/molbloom.git#master",
-  "smallworld-api @ git+https://github.com/David-Araripe/Python_SmallWorld_API.git#dont_sleep",
+  "smallworld-api",
 ]
 
 [project.optional-dependencies]
