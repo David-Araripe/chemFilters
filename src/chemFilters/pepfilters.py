@@ -8,12 +8,12 @@ import pandas as pd
 from pepsift import PepSift, SiftLevel
 from rdkit import Chem
 
-from .utils import smiToMol
+from .utils import smi_to_mol
 
 
-def _peptideFilterFunc(mol: Chem.Mol, sift_obj: PepSift = None, from_smi: bool = False):
+def _peptide_filter_func(mol: Chem.Mol, sift_obj: PepSift = None, from_smi: bool = False):
     if from_smi:
-        mol = smiToMol(mol)
+        mol = smi_to_mol(mol)
     if mol is None:
         return None
     else:
@@ -35,15 +35,15 @@ class PeptideFilters:
         """
         self.from_smi = from_smi
         self.filterType = filterType
-        self.filter = self._getFilter()
+        self.filter = self._get_filter()
         self.njobs = njobs
 
     @property
-    def availableFilters(self):
+    def available_filters(self):
         """List of available filters on pepsift."""
         return dict(SiftLevel.__members__.items())
 
-    def _getFilter(self):
+    def _get_filter(self):
         """Get the filter from PepSift."""
         filtname = self.filterType
         if filtname in ["NaturalLAminoAcids", 1, "naturall"]:
@@ -59,11 +59,11 @@ class PeptideFilters:
         else:
             raise ValueError(
                 f"Filter type {self.filterType} not available. "
-                f"Try one of:\n{self.availableFilters}"
+                f"Try one of:\n{self.available_filters}"
             )
         return _filter
 
-    def filterMols(self, mols: List[Chem.Mol], sift_level: SiftLevel = None):
+    def filter_mols(self, mols: List[Chem.Mol], sift_level: SiftLevel = None):
         """Filter molecules using the designated pepsift filter. If `sift_level=None`
         as default, will load it from `self.filter`.
 
@@ -81,12 +81,12 @@ class PeptideFilters:
         sift_obj = PepSift(sift_level)
         with Pool(self.njobs) as p:
             bool_mask = p.map(
-                partial(_peptideFilterFunc, sift_obj=sift_obj, from_smi=self.from_smi),
+                partial(_peptide_filter_func, sift_obj=sift_obj, from_smi=self.from_smi),
                 mols,
             )
         return bool_mask
 
-    def flagDataframe(self, mols: List[Chem.Mol]):
+    def get_flagging_df(self, mols: List[Chem.Mol]):
         """Will flag the molecules according to all filter types avialable in pepsift.
 
         Args:
@@ -95,8 +95,8 @@ class PeptideFilters:
         Returns:
             pd.DataFrame: dataframe with the flags for each filter type.
         """
-        final_df = pd.DataFrame(columns=self.availableFilters.keys())
+        final_df = pd.DataFrame(columns=self.available_filters.keys())
 
-        for name, level in self.availableFilters.items():
-            final_df[name] = self.filterMols(mols, sift_level=level)
+        for name, level in self.available_filters.items():
+            final_df[name] = self.filter_mols(mols, sift_level=level)
         return final_df.replace({None: np.nan})  # In case molecules were None
