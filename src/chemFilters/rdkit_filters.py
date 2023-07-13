@@ -3,6 +3,7 @@
 
 import warnings
 from functools import partial
+from itertools import product
 from multiprocessing import Pool
 from typing import List, Tuple, Union
 
@@ -11,7 +12,8 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
-from .utils import get_catalog_match
+from .img_render import MolPlotter
+from .utils import get_catalog_match, smi_from_mol
 
 
 class RDKitFilters:
@@ -23,7 +25,7 @@ class RDKitFilters:
             n_jobs: number of jobs if wanted to run things in parallel. Defaults to 1.
             from_smi = if True, will do the conversion from SMILES to RDKit Mol object.
         """
-        self.from_smi = from_smi
+        self._from_smi = from_smi
         self.filter_type = filter_type
         self.filter = self._get_filter()
         self.n_jobs = n_jobs
@@ -53,7 +55,7 @@ class RDKitFilters:
         """Filter molecules using RDKit FilterCatalogs.
 
         Args:
-            mols: list of RDKit Mol objects or SMILES strings if self.from_smi is True.
+            mols: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
 
         Returns:
             filter_names: list of filter names that were matched.
@@ -68,7 +70,7 @@ class RDKitFilters:
                     partial(
                         get_catalog_match,
                         catalog=self._filter_params,
-                        from_smi=self.from_smi,
+                        from_smi=self._from_smi,
                     ),
                     mols,
                 )
@@ -81,7 +83,7 @@ class RDKitFilters:
         dataframe will be the description of the molecular filter that was caught.
 
         Args:
-            mols: list of RDKit Mol objects or SMILES strings if self.from_smi is True.
+            mols: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
 
         Returns:
             pd.DataFrame: dataframe with columns as filter types and rows as molecules.
@@ -93,7 +95,7 @@ class RDKitFilters:
             )
         filter_names, descriptions, substructs = self.filter_mols(mols)
         nope = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of filters
-        columns = [
+        columns = ['SMILES'] + [
             c
             for c in self.available_filters
             if c not in nope and not c.startswith("CHEMBL_")
@@ -111,5 +113,28 @@ class RDKitFilters:
         final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
         for col in final_df.columns:
             final_df[col] = final_df[col].apply(lambda x: ";".join(x))
+        if self._from_smi:
+            final_df["SMILES"] = mols
+        else:
+            with Pool(self.n_jobs) as p:
+                final_df["SMILES"] = p.map(smi_from_mol, mols)
+        self.filter_names = filter_names
+        self.descriptions = descriptions
+        self.substructs = substructs
         return final_df.replace({"": np.nan})
 
+    def plot_matches(
+        self,
+        mols: List[Union[Chem.Mol, str]],
+        **kwargs
+    ) -> None:
+        """Plot the matches for the given molecules.
+
+        Args:
+            mols: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
+            filter_names: list of filter names that were matched.
+            descriptions: list of filter descriptions that were matched.
+            substructs: list of substructures that were matched.
+        """
+        plotter = MolPlotter(from_smi=self._from_smi, **kwargs)
+        plotter.plot_mol_with_matches(mols, self.uniq_structs, self.uniq_descriptions, self.uniq_filter)
