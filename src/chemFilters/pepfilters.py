@@ -11,7 +11,9 @@ from rdkit import Chem
 from .utils import smi_to_mol
 
 
-def _peptide_filter_func(mol: Chem.Mol, sift_obj: PepSift = None, from_smi: bool = False):
+def _peptide_filter_func(
+    mol: Chem.Mol, sift_obj: PepSift = None, from_smi: bool = False
+):
     if from_smi:
         mol = smi_to_mol(mol)
     if mol is None:
@@ -81,7 +83,9 @@ class PeptideFilters:
         sift_obj = PepSift(sift_level)
         with Pool(self.njobs) as p:
             bool_mask = p.map(
-                partial(_peptide_filter_func, sift_obj=sift_obj, from_smi=self.from_smi),
+                partial(
+                    _peptide_filter_func, sift_obj=sift_obj, from_smi=self.from_smi
+                ),
                 mols,
             )
         return bool_mask

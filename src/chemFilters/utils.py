@@ -18,6 +18,7 @@ def smi_to_mol(smi: str):
         warnings.warn(f"Could not convert SMILES {smi} to rdkit.Chem.Mol")
     return mol
 
+
 def smi_from_mol(mol: Chem.Mol):
     """Convert a rdkit.Chem.Mol object to a SMILES string."""
     smi = Chem.MolToSmiles(mol)
@@ -25,7 +26,10 @@ def smi_from_mol(mol: Chem.Mol):
         warnings.warn(f"Could not convert rdkit.Chem.Mol to SMILES {mol}")
     return smi
 
-def get_catalog_match(mol: Chem.Mol, catalog: Chem.FilterCatalog, from_smi: bool = False):
+
+def get_catalog_match(
+    mol: Chem.Mol, catalog: Chem.FilterCatalog, from_smi: bool = False
+):
     """Get the filter names, descriptions, and respective substructures from
     rdkit.Chem.FilterCatalog.FilterCatalogParams.GetMatches.
 
@@ -40,6 +44,7 @@ def get_catalog_match(mol: Chem.Mol, catalog: Chem.FilterCatalog, from_smi: bool
     descriptions = [m.GetDescription() for m in matches]
     substructs = [m.GetFilterMatches(mol)[0].filterMatch.GetPattern() for m in matches]
     return filter_names, descriptions, substructs
+
 
 def geometric_mean(arr, axis=0):
     """Calculate the geometric mean of an array. Adapted from SciPy:

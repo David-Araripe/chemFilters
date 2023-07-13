@@ -109,8 +109,10 @@ class FontManager:
 
         if self.include_plt:
             import matplotlib.font_manager as fm
+
             font_dict.update({font.name: font.fname for font in fm.fontManager.ttflist})
         return font_dict
+
 
 class MolPlotter:
     def __init__(
@@ -130,7 +132,7 @@ class MolPlotter:
         self._font_name = font_name
         self._label_loc = label_loc
         self._n_jobs = n_jobs
-        
+
     @property
     def available_fonts(self):
         try:
@@ -140,7 +142,7 @@ class MolPlotter:
             include_plt = False
         fm = FontManager(include_plt=include_plt)
         return fm.available_fonts
-    
+
     def _process_mols(self, mols):
         if self._from_smi:
             with Pool(self._n_jobs) as p:
@@ -227,8 +229,7 @@ class MolPlotter:
     def _substructure_palette(
         self, n_substruct: int, cmap: str, alpha: float = 1.0
     ) -> List[Tuple[float, float, float, float]]:
-        """
-        """
+        """ """
         qualitative_cmaps = [
             "Pastel1",
             "Pastel2",
@@ -248,11 +249,9 @@ class MolPlotter:
             colors = [tuple([*col] + [alpha]) for col in cm.get_cmap(cmap).colors]
         else:
             scalar_mappable = cm.ScalarMappable(cmap=cmap)
-            colors = scalar_mappable.to_rgba(
-                range(n_substruct), alpha=alpha
-            ).tolist()
+            colors = scalar_mappable.to_rgba(range(n_substruct), alpha=alpha).tolist()
         return colors
-    
+
     def _images_to_grid(self, images: List[Image.Image], n_cols: int) -> Image:
         """Helper function to organize a list of images into a single image, as a grid.
 
@@ -262,7 +261,8 @@ class MolPlotter:
 
         Returns:
             The image collage as a PIL.Image.Image object.
-        """        
+        """
+
         def list_split(list_a, chunk_size):
             """
             Returns a generator with a determined chunk size over list_a.
@@ -270,6 +270,7 @@ class MolPlotter:
             """
             for i in range(0, len(list_a), chunk_size):
                 yield list_a[i : i + chunk_size]
+
         # Splitting the list of images into a list of lists with n_cols
         if n_cols is None:
             n_cols = len(images)
@@ -288,8 +289,14 @@ class MolPlotter:
         # Creating and returning image from array
         final_img = Image.fromarray(final_img)
         return final_img
-    
-    def render_mol(self, mol: Chem.Mol, label: Optional[str]=None, match_struct: Optional[Union[str, Chem.Mol]] = None, **kwargs) -> Image:
+
+    def render_mol(
+        self,
+        mol: Chem.Mol,
+        label: Optional[str] = None,
+        match_struct: Optional[Union[str, Chem.Mol]] = None,
+        **kwargs,
+    ) -> Image:
         """Plot molecules using rdMolDraw2D.MolDraw2DCairo. Keyword arguments provided
         will be passed into DrawMolecule method of the same class.
 
@@ -306,11 +313,15 @@ class MolPlotter:
             else:
                 mol = Chem.MolFromSmiles(match_struct)
                 if mol is None:
-                    logging.warning('Error: "match_struct" from SMILES RDKit Mol is invalid.')
+                    logging.warning(
+                        'Error: "match_struct" from SMILES RDKit Mol is invalid.'
+                    )
                     logging.warning('Trying "match_struct" from SMARTS...')
                     mol = Chem.MolFromSmarts(match_struct)
                     if mol is None:
-                        raise ValueError('Error: "match_struct" invalid from SMILES & SMARTS.')
+                        raise ValueError(
+                            'Error: "match_struct" invalid from SMILES & SMARTS.'
+                        )
                 match_struct = mol
             AllChem.Compute2DCoords(match_struct)
             AllChem.GenerateDepictionMatching2DStructure(
@@ -324,7 +335,13 @@ class MolPlotter:
             img = self._add_mol_label([img], [label])[0]
         return img
 
-    def render_with_matches(self, mol: Chem.Mol, substructs, label: Optional[str] = None, scaff_pose: Optional[Union[str, Chem.Mol]] = None) -> Image:
+    def render_with_matches(
+        self,
+        mol: Chem.Mol,
+        substructs,
+        label: Optional[str] = None,
+        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
+    ) -> Image:
         """Render the substructures on the molecules using default RDKit coloring.
 
         Args:
@@ -351,7 +368,13 @@ class MolPlotter:
                 aid1 = hit_ats[bond.GetBeginAtomIdx()]
                 aid2 = hit_ats[bond.GetEndAtomIdx()]
                 hit_bonds.append(mol.GetBondBetweenAtoms(aid1, aid2).GetIdx())
-        img = self.render_mol(mol, highlightAtoms=hit_atoms, highlightBonds=hit_bonds, label=label, match_struct=scaff_pose)
+        img = self.render_mol(
+            mol,
+            highlightAtoms=hit_atoms,
+            highlightBonds=hit_bonds,
+            label=label,
+            match_struct=scaff_pose,
+        )
         return img
 
     def render_with_colored_matches(
@@ -362,7 +385,7 @@ class MolPlotter:
         label: Optional[str] = None,
         cmap: str = "rainbow",
         alpha: float = 0.5,
-        scaff_pose: Optional[Union[str, Chem.Mol]] = None
+        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
     ):
         """Take descriptions and substructures output from RDKitFilters.filter_mols
         and renders them on the molecular structure, coloring the substructures and
@@ -406,10 +429,18 @@ class MolPlotter:
             k: tuple(geometric_mean(v)) if v.ndim > 1 else tuple(v)
             for k, v in color_dict.items()
         }  # should be tuples
-        img = self.render_mol(mol, label=label, highlightAtoms=color_dict.keys(), highlightAtomColors=color_dict, match_struct=scaff_pose)
+        img = self.render_mol(
+            mol,
+            label=label,
+            highlightAtoms=color_dict.keys(),
+            highlightAtomColors=color_dict,
+            match_struct=scaff_pose,
+        )
         return img
 
-    def colored_matches_legend(self, descriptions, substructures, cmap='rainbow', alpha=0.5, ax=None):
+    def colored_matches_legend(
+        self, descriptions, substructures, cmap="rainbow", alpha=0.5, ax=None
+    ):
         if ax is not None:
             ax = plt.gca()
         else:
@@ -417,7 +448,9 @@ class MolPlotter:
         patches = []
         colors = self._substructure_palette(len(substructures), cmap=cmap, alpha=alpha)
         for smarts, descr, color in zip(substructures, descriptions, colors):
-            patches.append(mpatches.Patch(facecolor=color, label=descr, edgecolor="black"))
+            patches.append(
+                mpatches.Patch(facecolor=color, label=descr, edgecolor="black")
+            )
         ax.legend(
             handles=patches,
             bbox_to_anchor=(1.05, 0.25),
@@ -429,11 +462,12 @@ class MolPlotter:
         ax.set_axis_off()
         if ax is None:
             return fig, ax
-    
+
+
 class MolGridPlotter(MolPlotter):
     def __init__(self, n_jobs: int = 1, **kwargs):
         super().__init__(n_jobs=n_jobs, **kwargs)
-        
+
     def mol_grid_png(
         self,
         mols: list,
@@ -461,14 +495,12 @@ class MolGridPlotter(MolPlotter):
             images = p.map(partial(self.render_mol, match_struct=scaff_pose), mols)
         if labels is not None:
             # Putting the fonts on the images
-            images = self._add_mol_label(
-                images, labels
-            )
+            images = self._add_mol_label(images, labels)
         image = self._images_to_grid(images, n_cols)
         if bw:
             image = image.convert("L")
         return image
-    
+
     def mol_structmatch_grid(
         self,
         mols: list,
@@ -503,14 +535,12 @@ class MolGridPlotter(MolPlotter):
             images = p.starmap(partial_function, variables)
         if labels is not None:
             # Putting the fonts on the images
-            images = self._add_mol_label(
-                images, labels
-            )
+            images = self._add_mol_label(images, labels)
         image = self._images_to_grid(images, n_cols)
         if bw:
             image = image.convert("L")
         return image
-    
+
     def mol_structmatch_color_grid(
         self,
         mols: list,
@@ -536,7 +566,9 @@ class MolGridPlotter(MolPlotter):
             PIL.Image.Image
         """
         mols = self._process_mols(mols)
-        partial_function = partial(self.render_with_colored_matches, scaff_pose=scaff_pose)
+        partial_function = partial(
+            self.render_with_colored_matches, scaff_pose=scaff_pose
+        )
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
             variables = list(zip(mols, descriptions, substructs, labels))
@@ -546,9 +578,7 @@ class MolGridPlotter(MolPlotter):
             images = p.starmap(partial_function, variables)
         if labels is not None:
             # Putting the fonts on the images
-            images = self._add_mol_label(
-                images, labels
-            )
+            images = self._add_mol_label(images, labels)
         image = self._images_to_grid(images, n_cols)
         if bw:
             image = image.convert("L")

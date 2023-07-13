@@ -79,7 +79,7 @@ class RDKitFilters:
 
     def get_flagging_df(self, mols: List[Union[Chem.Mol, str]]) -> pd.DataFrame:
         """Flag molecules using the defined RDKit FilterCatalogs and return a dataframe
-        with all the filters as columns and the molecules as rows. Items within the 
+        with all the filters as columns and the molecules as rows. Items within the
         dataframe will be the description of the molecular filter that was caught.
 
         Args:
@@ -95,7 +95,7 @@ class RDKitFilters:
             )
         filter_names, descriptions, substructs = self.filter_mols(mols)
         nope = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of filters
-        columns = ['SMILES'] + [
+        columns = ["SMILES"] + [
             c
             for c in self.available_filters
             if c not in nope and not c.startswith("CHEMBL_")
@@ -123,11 +123,7 @@ class RDKitFilters:
         self.substructs = substructs
         return final_df.replace({"": np.nan})
 
-    def plot_matches(
-        self,
-        mols: List[Union[Chem.Mol, str]],
-        **kwargs
-    ) -> None:
+    def plot_matches(self, mols: List[Union[Chem.Mol, str]], **kwargs) -> None:
         """Plot the matches for the given molecules.
 
         Args:
@@ -137,4 +133,6 @@ class RDKitFilters:
             substructs: list of substructures that were matched.
         """
         plotter = MolPlotter(from_smi=self._from_smi, **kwargs)
-        plotter.plot_mol_with_matches(mols, self.uniq_structs, self.uniq_descriptions, self.uniq_filter)
+        plotter.plot_mol_with_matches(
+            mols, self.uniq_structs, self.uniq_descriptions, self.uniq_filter
+        )
