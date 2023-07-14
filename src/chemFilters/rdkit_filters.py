@@ -134,5 +134,5 @@ class RDKitFilters:
         """
         plotter = MolPlotter(from_smi=self._from_smi, **kwargs)
         plotter.plot_mol_with_matches(
-            mols, self.uniq_structs, self.uniq_descriptions, self.uniq_filter
+            mols, self.descriptions, self.substructs, self.uniq_filter
         )

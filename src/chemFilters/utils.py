@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
+from rdkit.Chem.FilterCatalog import FilterCatalog
 
 
 def smi_to_mol(smi: str):
@@ -28,7 +29,7 @@ def smi_from_mol(mol: Chem.Mol):
 
 
 def get_catalog_match(
-    mol: Chem.Mol, catalog: Chem.FilterCatalog, from_smi: bool = False
+    mol: Chem.Mol, catalog: FilterCatalog, from_smi: bool = False
 ):
     """Get the filter names, descriptions, and respective substructures from
     rdkit.Chem.FilterCatalog.FilterCatalogParams.GetMatches.

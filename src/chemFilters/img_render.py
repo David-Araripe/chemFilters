@@ -146,7 +146,7 @@ class MolPlotter:
     def _process_mols(self, mols):
         if self._from_smi:
             with Pool(self._n_jobs) as p:
-                return p.map(partial(smi_to_mol, mols))
+                return p.map(smi_to_mol, mols)
         else:
             return mols
 
