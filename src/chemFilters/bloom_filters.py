@@ -12,7 +12,7 @@ from .chem.standardizers import SmilesStandardizer
 from .utils import smi_from_mol
 
 
-class MolbloomWrapper:
+class MolbloomFilters:
     def __init__(
         self, from_smi=True, standardize=True, std_method="chembl", n_jobs=1, **kwargs
     ):

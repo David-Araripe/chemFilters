@@ -16,9 +16,9 @@ from .img_render import MolPlotter
 from .utils import get_catalog_match, smi_from_mol
 
 
-class RDKitFilters:
+class RdkitFitlers:
     def __init__(self, filter_type="ALL", n_jobs=1, from_smi: bool = False) -> None:
-        """Initiaze RDKitFilters object.
+        """Initiaze RdkitFitlers object.
 
         Args:
             filter_type: type of filter from RDKit FilterCatalogs. Defaults to "ALL".
