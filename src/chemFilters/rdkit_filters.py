@@ -122,17 +122,3 @@ class RDKitFilters:
         self.descriptions = descriptions
         self.substructs = substructs
         return final_df.replace({"": np.nan})
-
-    def plot_matches(self, mols: List[Union[Chem.Mol, str]], **kwargs) -> None:
-        """Plot the matches for the given molecules.
-
-        Args:
-            mols: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
-            filter_names: list of filter names that were matched.
-            descriptions: list of filter descriptions that were matched.
-            substructs: list of substructures that were matched.
-        """
-        plotter = MolPlotter(from_smi=self._from_smi, **kwargs)
-        plotter.plot_mol_with_matches(
-            mols, self.descriptions, self.substructs, self.uniq_filter
-        )
