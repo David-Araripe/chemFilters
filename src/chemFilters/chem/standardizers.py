@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Utility modules with functions for the chemFilters.chem subpackage."""
+import warnings
 from functools import partial
 from importlib.util import find_spec
 from multiprocessing import Pool
-from typing import List
+from typing import List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
 from rdkit import Chem
@@ -12,20 +13,44 @@ from tqdm import tqdm
 from .utils import (
     RDKitVerbosityOFF,
     RDKitVerbosityON,
-    smilesToCanon,
-    smilesToConnectivity,
-    smilesToInchi,
-    smilesToInchiKey,
+    molToCanon,
+    molToConnectivity,
+    molToInchi,
+    molToInchiKey,
 )
 
 if find_spec("papyrus_structure_pipeline"):
     from papyrus_structure_pipeline import standardizer as papyrus_std
 
-
-class SmilesStandardizer:
-    """A class to standardize SMILES strings. Initialization allows for the selection
-    of the settings of the standardizer. The object can then be called on a iterable
-    containing SMILES strings to make the standardization."""
+class MoleculeHandler:
+    """Interface clas for handling molecules. implemented so I can use this `from_smi`
+    functionalitiy on other classes used in the pipeline.
+    """
+    
+    def __init__(self, from_smi) -> None:
+        self.from_smi = from_smi
+        
+    def _mol_handler(self, stdin: Union[str, Chem.Mol]):
+        """Treat `stdin` as [str|Mol] depending on self.from_smiles and return a Mol
+        or a None in case the SMILES are invalid."""
+        if self.from_smi:
+            try:
+                mol = Chem.MolFromSmiles(stdin)
+            except TypeError:
+                warnings.warn(f"Error converting SMILES to Mol: {stdin}")
+                mol = None
+        else:
+            if isinstance(stdin, str):
+                raise ValueError(
+                    "If from_smi is False, inputs must be rdkit.Chem.Mol objects."
+                )
+            mol = stdin
+        return mol
+    
+class ChemStandardizer(MoleculeHandler):
+    """A class to standardize molecules/SMILES strings. Initialization allows for the 
+    selection of the settings of the standardizer. The object can then be called on a
+    iterable containing molecules/SMILES strings to apply the standardization."""
 
     def __init__(
         self,
@@ -34,8 +59,9 @@ class SmilesStandardizer:
         isomeric: bool = True,
         progress: bool = True,
         verbose: bool = False,
+        from_smi: bool = True,
     ) -> None:
-        """Initializes the SmilesStandardizer class.
+        """Initializes the ChemStandardizer class.
 
         Args:
             method: which standardization pipeline to use. Current supports "canon",
@@ -45,6 +71,7 @@ class SmilesStandardizer:
             isomeric: output smiles with isomeric information. Defaults to True.
             progress: display a progress bar with tqdm. Defaults to True.
             verbose: if false, silences rdkit errors. Defaults to False.
+            from_smi: if True, the standardizer will expect SMILES strings as input.
 
         Raises:
             ImportError: if method is "papyrus" but the optional dependency is not
@@ -53,15 +80,15 @@ class SmilesStandardizer:
         """
         if method.lower() == "chembl":
             self.standardizer = partial(
-                self.chemblSmilesStandardizer, isomeric=isomeric
+                self.chemblStandardizer, isomeric=isomeric
             )
         elif method.lower() == "canon":
-            self.standardizer = partial(smilesToCanon, isomeric=isomeric)
+            self.standardizer = partial(molToCanon, isomeric=isomeric)
         elif method.lower() == "papyrus":
             # avoid import since it's not a required dependency
             if find_spec("papyrus_structure_pipeline"):
                 self.standardizer = partial(
-                    self.papyrusSmilesStandardizer, isomeric=isomeric
+                    self.papyrusStandardizer, isomeric=isomeric
                 )
             else:
                 raise ImportError(
@@ -71,34 +98,36 @@ class SmilesStandardizer:
                 )
         else:
             raise ValueError(f"Invalid SMILES standardizing method: {method}")
+        super().__init__(from_smi)
         self.n_jobs = n_jobs
         self.progress = progress
         self.verbose = verbose
 
-    def __call__(self, smiles: List[str]) -> List[str]:
+    def __call__(self, stdin: List[Union[str, Chem.Mol]]) -> List[str]:
         """Calls the standardizer on a list of SMILES strings to perform the
         standardization according to the settings set at initialization.
 
         Args:
-            smiles: list of smiles strings.
+            stdin: standard input; a list of SMILES strings or rdkit.Chem.Mol objects
+                depending on the value of self.from_smi.
 
         Returns:
-            _description_
+            A list of standardized SMILES strings.
         """
         if not self.verbose:
             RDKitVerbosityOFF()
         with Pool(self.n_jobs) as p:
             if self.progress:
-                vals = list(tqdm(p.imap(self.standardizer, smiles), total=len(smiles)))
+                vals = list(tqdm(p.imap(self.standardizer, stdin), total=len(stdin)))
             else:
-                vals = p.map(self.standardizer, smiles)
+                vals = p.map(self.standardizer, stdin)
         # restore the logger level
         RDKitVerbosityON()
         return vals
-
-    @staticmethod
-    def papyrusSmilesStandardizer(
-        smi: str,
+    
+    def papyrusStandardizer(
+        self,
+        stdin: Union[str, Chem.Mol],
         isomeric: bool = True,
         **kwargs,
     ) -> str:
@@ -115,14 +144,11 @@ class SmilesStandardizer:
         Returns:
             standardized smiles string
         """
-        try:
-            mol = Chem.MolFromSmiles(smi)
-        except TypeError:
-            return None
+        mol = self._mol_handler(stdin)
         try:
             standard_mol = papyrus_std.standardize(mol, **kwargs)
         except RuntimeError:
-            print("Error standardizing molecule: ", smi)
+            print("Error standardizing molecule: ", stdin)
             standard_mol = None
         if standard_mol is None:
             return None
@@ -131,8 +157,7 @@ class SmilesStandardizer:
         )
         return standard_smi
 
-    @staticmethod
-    def chemblSmilesStandardizer(smi: str, isomeric: bool = True, **kwargs) -> str:
+    def chemblStandardizer(self, stdin: str, isomeric: bool = True, **kwargs) -> str:
         """Uses the ChEMBL standardizer to standardize a SMILES string. Accepts extra
         keyword arguments that will be passed to the standardizer
 
@@ -143,10 +168,7 @@ class SmilesStandardizer:
         Returns:
             standardized smiles string
         """
-        try:
-            mol = Chem.MolFromSmiles(smi)
-        except TypeError:
-            return None
+        mol = self._mol_handler(stdin)
         standard_mol = chembl_std.standardize_mol(mol, **kwargs)
         standard_smi = Chem.MolToSmiles(
             standard_mol, kekuleSmiles=False, canonical=True, isomericSmiles=isomeric
@@ -154,7 +176,7 @@ class SmilesStandardizer:
         return standard_smi
 
 
-class InchiHandling:
+class InchiHandling(MoleculeHandler):
     """Obtain a list of inchis, inchikeys or connectivities from a list of smiles.
     Initialization allows for the selection of the settings. The object can then be
     called on a iterable containing SMILES strings to obtain the desired identifier."""
@@ -165,6 +187,7 @@ class InchiHandling:
         n_jobs: int = 5,
         progress: bool = True,
         verbose: bool = False,
+        from_smi: bool = True,
     ) -> None:
         """Initialize the InchiHandling class.
 
@@ -179,25 +202,27 @@ class InchiHandling:
             ValueError: if the convert_to argument is not one of the three options.
         """
         if convert_to.lower() == "inchi":
-            self.converter = partial(smilesToInchi, verbose=verbose)
+            self.converter = partial(molToInchi, verbose=verbose)
         elif convert_to.lower() == "inchikey":
-            self.converter = partial(smilesToInchiKey, verbose=verbose)
+            self.converter = partial(molToInchiKey, verbose=verbose)
         elif convert_to.lower() == "connectivity":
-            self.converter = partial(smilesToConnectivity, verbose=verbose)
+            self.converter = partial(molToConnectivity, verbose=verbose)
         else:
             raise ValueError(f"Invalid convertion method: {self.convert_to}")
         self.n_jobs = n_jobs
         self.progress = progress
         self.verbose = verbose
+        super().__init__(from_smi)
 
-    def __call__(self, smiles: list) -> list:
+    def __call__(self, stdin: list) -> list:
         if not self.verbose:
             RDKitVerbosityOFF()
         with Pool(self.n_jobs) as p:
+            mols = p.map(self._mol_handler, stdin)
             if self.progress:
-                vals = list(tqdm(p.imap(self.converter, smiles), total=len(smiles)))
+                vals = list(tqdm(p.imap(self.converter, mols), total=len(mols)))
             else:
-                vals = p.map(self.converter, smiles)
+                vals = p.map(self.converter, mols)
         # restore the logger level
         RDKitVerbosityON()
         return vals

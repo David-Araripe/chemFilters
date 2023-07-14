@@ -19,7 +19,7 @@ def RDKitVerbosityOFF():
     return lg
 
 
-def smilesToConnectivity(smi, verbose: bool = True):
+def molToConnectivity(smi, verbose: bool = True):
     """Converts a SMILES string to a connectivity string."""
     try:
         mol = Chem.MolFromSmiles(smi)
@@ -31,7 +31,7 @@ def smilesToConnectivity(smi, verbose: bool = True):
         return None
 
 
-def smilesToInchiKey(smi, verbose: bool = True):
+def molToInchiKey(smi, verbose: bool = True):
     """Converts a SMILES string to an InChI string."""
     try:
         mol = Chem.MolFromSmiles(smi)
@@ -43,7 +43,7 @@ def smilesToInchiKey(smi, verbose: bool = True):
         return None
 
 
-def smilesToInchi(smi, verbose: bool = True):
+def molToInchi(smi, verbose: bool = True):
     """Converts a SMILES string to an InChI string."""
     try:
         mol = Chem.MolFromSmiles(smi)
@@ -55,7 +55,5 @@ def smilesToInchi(smi, verbose: bool = True):
         return None
 
 
-def smilesToCanon(smi, isomeric: bool = True):
-    return Chem.MolToSmiles(
-        Chem.MolFromSmiles(smi), canonical=True, isomericSmiles=isomeric
-    )
+def molToCanon(mol, isomeric: bool = True):
+    return Chem.MolToSmiles(mol, canonical=True, isomericSmiles=isomeric)
