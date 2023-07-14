@@ -39,7 +39,7 @@ def get_catalog_match(
     if from_smi:
         mol = smi_to_mol(mol)
     if mol is None:
-        return None, None
+        return None, None, None
     matches = catalog.GetMatches(mol)
     filter_names = [m.GetProp("FilterSet") for m in matches]
     descriptions = [m.GetDescription() for m in matches]

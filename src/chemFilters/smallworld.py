@@ -45,7 +45,7 @@ class SmilesSearcher:
         Source: https://wiki.docking.org/index.php/How_to_use_SmallWorld_API
         """
         csv_path = pkg_resources.resource_filename(
-            "chemFilters", "data/smallworld_parameters.csv"
+            "chemFilters", "resources/sw_parameters.csv"
         )
         return pd.read_csv(csv_path)
 
