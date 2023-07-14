@@ -1,0 +1,11 @@
+Parameter,Type,Description
+smi,text,Query SMILES
+db,text,Reference database (see List of available maps)
+dist,int,Topological distance upper bound (default: 10)
+tdn,int,Topological terminal down distance upper bound (default: 10)
+tup,int,Topological terminal up distance upper bound (default: 10)
+rdn,int,Topological ring down distance upper bound (default: 10)
+rup,int,Topological ring up distance upper bound (default: 10)
+ldn,int,Topological linker down distance upper bound (default: 10)
+lup,int,Topological linker up distance upper bound (default: 10)
+scores,text,List of scoring functions (default : none) - see /search/config

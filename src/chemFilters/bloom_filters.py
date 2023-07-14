@@ -26,7 +26,7 @@ class MolbloomFilters:
 
     @property
     def _smiles_standardizer(self):
-        return SmilesStandardizer(self._std_method, **self._kwargs)
+        return SmilesStandardizer(method=self._std_method, **self._kwargs)
 
     def _process_mols(self, mols):
         if self._from_smi is False:

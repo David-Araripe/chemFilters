@@ -55,7 +55,7 @@ class SmilesStandardizer:
             self.standardizer = partial(
                 self.chemblSmilesStandardizer, isomeric=isomeric
             )
-        if method.lower() == "canon":
+        elif method.lower() == "canon":
             self.standardizer = partial(smilesToCanon, isomeric=isomeric)
         elif method.lower() == "papyrus":
             # avoid import since it's not a required dependency
