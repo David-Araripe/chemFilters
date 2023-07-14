@@ -10,6 +10,7 @@ from chembl_structure_pipeline import standardizer as chembl_std
 from rdkit import Chem
 from tqdm import tqdm
 
+from .interface import MoleculeHandler
 from .utils import (
     RDKitVerbosityOFF,
     RDKitVerbosityON,
@@ -22,33 +23,9 @@ from .utils import (
 if find_spec("papyrus_structure_pipeline"):
     from papyrus_structure_pipeline import standardizer as papyrus_std
 
-class MoleculeHandler:
-    """Interface clas for handling molecules. implemented so I can use this `from_smi`
-    functionalitiy on other classes used in the pipeline.
-    """
-    
-    def __init__(self, from_smi) -> None:
-        self.from_smi = from_smi
-        
-    def _mol_handler(self, stdin: Union[str, Chem.Mol]):
-        """Treat `stdin` as [str|Mol] depending on self.from_smiles and return a Mol
-        or a None in case the SMILES are invalid."""
-        if self.from_smi:
-            try:
-                mol = Chem.MolFromSmiles(stdin)
-            except TypeError:
-                warnings.warn(f"Error converting SMILES to Mol: {stdin}")
-                mol = None
-        else:
-            if isinstance(stdin, str):
-                raise ValueError(
-                    "If from_smi is False, inputs must be rdkit.Chem.Mol objects."
-                )
-            mol = stdin
-        return mol
-    
+
 class ChemStandardizer(MoleculeHandler):
-    """A class to standardize molecules/SMILES strings. Initialization allows for the 
+    """A class to standardize molecules/SMILES strings. Initialization allows for the
     selection of the settings of the standardizer. The object can then be called on a
     iterable containing molecules/SMILES strings to apply the standardization."""
 
@@ -79,17 +56,13 @@ class ChemStandardizer(MoleculeHandler):
             ValueError: when an invalid method is passed.
         """
         if method.lower() == "chembl":
-            self.standardizer = partial(
-                self.chemblStandardizer, isomeric=isomeric
-            )
+            self.standardizer = partial(self.chemblStandardizer, isomeric=isomeric)
         elif method.lower() == "canon":
             self.standardizer = partial(molToCanon, isomeric=isomeric)
         elif method.lower() == "papyrus":
             # avoid import since it's not a required dependency
             if find_spec("papyrus_structure_pipeline"):
-                self.standardizer = partial(
-                    self.papyrusStandardizer, isomeric=isomeric
-                )
+                self.standardizer = partial(self.papyrusStandardizer, isomeric=isomeric)
             else:
                 raise ImportError(
                     "Optional dependency not found. Please install it by running:\n"
@@ -124,7 +97,7 @@ class ChemStandardizer(MoleculeHandler):
         # restore the logger level
         RDKitVerbosityON()
         return vals
-    
+
     def papyrusStandardizer(
         self,
         stdin: Union[str, Chem.Mol],
