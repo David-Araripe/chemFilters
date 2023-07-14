@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used in different modules of the chemFilters package."""
 
-import logging
 import warnings
-from typing import Union
 
 import numpy as np
-from PIL import Image
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw
 from rdkit.Chem.FilterCatalog import FilterCatalog
 
 
@@ -28,9 +24,7 @@ def smi_from_mol(mol: Chem.Mol):
     return smi
 
 
-def get_catalog_match(
-    mol: Chem.Mol, catalog: FilterCatalog, from_smi: bool = False
-):
+def get_catalog_match(mol: Chem.Mol, catalog: FilterCatalog, from_smi: bool = False):
     """Get the filter names, descriptions, and respective substructures from
     rdkit.Chem.FilterCatalog.FilterCatalogParams.GetMatches.
 

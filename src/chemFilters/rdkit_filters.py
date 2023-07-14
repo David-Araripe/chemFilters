@@ -95,7 +95,8 @@ class RdkitFilters:
             )
         filter_names, descriptions, substructs = self.filter_mols(mols)
         nope = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of filters
-        columns = [c
+        columns = [
+            c
             for c in self.available_filters
             if c not in nope and not c.startswith("CHEMBL_")
         ]

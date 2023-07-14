@@ -26,7 +26,7 @@ from .utils import geometric_mean, smi_to_mol
 
 
 class FontManager:
-    def __init__(self, wsl: bool = "auto", include_plt: bool = True):
+    def __init__(self, wsl: Union[bool, str] = "auto", include_plt: bool = True):
         """Initialize the FontManager class. It will search for fonts in the system and
         in matplotlib.
 
@@ -73,7 +73,7 @@ class FontManager:
 
         elif self.operating_system == "wsl":
             # Search within the default windows path
-            default_font_dir = Path("mnt/c/Windows/Fonts")
+            default_font_dir = Path("/mnt/c/Windows/Fonts")
             if default_font_dir.exists():
                 font_paths = sorted(list(default_font_dir.glob(f"*{font_extensions}")))
                 font_dict.update({_path.stem: _path for _path in font_paths})
