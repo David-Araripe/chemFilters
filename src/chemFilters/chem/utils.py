@@ -53,3 +53,9 @@ def smilesToInchi(smi, verbose: bool = True):
         if verbose:
             print("Error converting SMILES to InChI: ", inchi)
         return None
+
+
+def smilesToCanon(smi, isomeric: bool = True):
+    return Chem.MolToSmiles(
+        Chem.MolFromSmiles(smi), canonical=True, isomericSmiles=isomeric
+    )

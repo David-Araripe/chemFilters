@@ -12,6 +12,7 @@ from tqdm import tqdm
 from .utils import (
     RDKitVerbosityOFF,
     RDKitVerbosityON,
+    smilesToCanon,
     smilesToConnectivity,
     smilesToInchi,
     smilesToInchiKey,
@@ -37,9 +38,9 @@ class SmilesStandardizer:
         """Initializes the SmilesStandardizer class.
 
         Args:
-            method: which standardization pipeline to use. Current supports "chembl" and
-                "papyrus", but the latter is an optional dependency. Defaults to
-                "chembl".
+            method: which standardization pipeline to use. Current supports "canon",
+                "chembl" and "papyrus", but the latter is an optional dependency.
+                Defaults to "chembl". "canon" is rdkit's SMILES canonicalization.
             n_jobs: number of jobs running in parallel. Defaults to 5.
             isomeric: output smiles with isomeric information. Defaults to True.
             progress: display a progress bar with tqdm. Defaults to True.
@@ -54,6 +55,8 @@ class SmilesStandardizer:
             self.standardizer = partial(
                 self.chemblSmilesStandardizer, isomeric=isomeric
             )
+        if method.lower() == "canon":
+            self.standardizer = partial(smilesToCanon, isomeric=isomeric)
         elif method.lower() == "papyrus":
             # avoid import since it's not a required dependency
             if find_spec("papyrus_structure_pipeline"):
