@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Wrapper function for molspotter, a tool based on Pat Water's silly walks (hence the module name)""" # noqa: E501
+"""Wrapper function for molspotter, a tool based on Pat Water's silly walks (hence the module name)"""  # noqa: E501
 from itertools import product
 from multiprocessing import Pool
 from typing import List, Union

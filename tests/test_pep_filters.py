@@ -19,13 +19,11 @@ class TestPeptideFilters(unittest.TestCase):
 
     def test_available_filters(self):
         filters = self.filterFunc.available_filters
-        self.assertIsInstance(filters, dict)  # Expected type may vary
+        self.assertIsInstance(filters, dict)
 
     def test_filter_mols(self):
         filtered_mols = self.filterFunc.filter_mols(self.test_smiles)
-        self.assertIsNotNone(
-            filtered_mols
-        )  # Depending on the filter_mols functionality, you may need to adjust the assertion
+        self.assertIsNotNone(filtered_mols)
 
     def test_get_flagging_df(self):
         result_df = self.filterFunc.get_flagging_df(self.test_smiles)

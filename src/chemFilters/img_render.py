@@ -304,7 +304,7 @@ class MolPlotter(MoleculeHandler):
         Returns:
             a PIL.Image.Image object.
         """
-        mol = self._process_mols([mol])[0]
+        mol = self._mol_handler(mol)
         if match_struct is not None:
             if isinstance(match_struct, Chem.rdchem.Mol):
                 AllChem.Compute2DCoords(match_struct)
@@ -350,7 +350,7 @@ class MolPlotter(MoleculeHandler):
         Returns:
             PIL.Image.Image with the molecule and the highlighted substructures.
         """
-        mol = self._process_mols([mol])[0]
+        mol = self._mol_handler(mol)
         hit_bonds = []
         hit_atoms = []
         if "__iter__" not in dir(substructs):
@@ -407,7 +407,7 @@ class MolPlotter(MoleculeHandler):
             matplotlib.figure.Figure and Axis with the molecule and the
                 highlighted substructures.
         """
-        mol = self._process_mols([mol])[0]
+        mol = self._mol_handler(mol)
         smarts = [Chem.MolToSmarts(sub) for sub in substructs]
         unique_smarts, indices = np.unique(smarts, return_index=True)
         unique_descrip = [descriptions[i] for i in indices]

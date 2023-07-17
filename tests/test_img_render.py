@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import patch
 
 import PIL
 from rdkit import Chem
@@ -36,10 +35,9 @@ class TestMolPlotter(unittest.TestCase):
         self.plotter = MolPlotter(from_smi=False)
         self.molecule = Chem.MolFromSmiles("CC(=O)OC1=CC=CC=C1C(=O)O")
 
-    @patch("chemFilters.img_render.FontManager")
-    def test_available_fonts(self, mock_FontManager):
-        self.plotter.available_fonts
-        mock_FontManager.assert_called_once()
+    def test_available_fonts(self):
+        self.assertIsInstance(self.plotter.available_fonts, dict)
+        self.assertTrue(len(self.plotter.available_fonts) > 0)
 
     def test_process_mols(self):
         mol_list = [

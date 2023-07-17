@@ -6,7 +6,7 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalogParams
 
-from chemFilters import RdkitFilters, rdkit_filters
+from chemFilters import RdkitFilters
 
 
 class TestRdkitFilters(unittest.TestCase):
