@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used by the chemFilters.chem subpackage."""
 
+import logging
+
 from rdkit import Chem, RDLogger
 from rdkit.Chem import inchi
 
@@ -8,7 +10,7 @@ from rdkit.Chem import inchi
 def RDKitVerbosityON():
     """Switches on RDKit verbosity"""
     lg = RDLogger.logger()
-    lg.setLevel(RDLogger.WARNING)
+    lg.setLevel(RDLogger.INFO)
     return lg
 
 
@@ -27,7 +29,7 @@ def molToConnectivity(smi, verbose: bool = True):
         return connectivity
     except TypeError:
         if verbose:
-            print("Error converting SMILES to connectivity: ", smi)
+            logging.warn("Error converting SMILES to connectivity: ", smi)
         return None
 
 
@@ -39,7 +41,7 @@ def molToInchiKey(smi, verbose: bool = True):
         return connectivity
     except TypeError:
         if verbose:
-            print("Error converting SMILES to connectivity: ", smi)
+            logging.warn("Error converting SMILES to connectivity: ", smi)
         return None
 
 
@@ -51,7 +53,7 @@ def molToInchi(smi, verbose: bool = True):
         return inchi_str
     except TypeError:
         if verbose:
-            print("Error converting SMILES to InChI: ", inchi)
+            logging.warn("Error converting SMILES to InChI: ", inchi)
         return None
 
 

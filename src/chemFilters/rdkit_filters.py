@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """A module for filtering molecules using RDKit FilterCatalogs."""
 
-import warnings
+import logging
 from functools import partial
 from multiprocessing import Pool
 from typing import List, Tuple, Union
@@ -89,7 +89,7 @@ class RdkitFilters:
             pd.DataFrame: dataframe with columns as filter types and rows as molecules.
         """
         if self.filter_type != "ALL":
-            warnings.warn(
+            logging.warn(
                 f"Filter type {self.filter_type} is not 'ALL'. "
                 "Some filters may not be applied."
             )
@@ -125,9 +125,9 @@ class RdkitFilters:
                 final_df.insert(0, "SMILES", p.map(smi_from_mol, mols))
         if error_idx != []:
             final_df.loc[error_idx, "SMILES"] = np.nan
-            warnings.warn(
+            logging.warn(
                 f"Failed to get filter names and descriptions for {len(error_idx)} "
-                f"molecules in indexes: {error_idx}."
+                f"molecules in indexes: {error_idx}. SMILES will be set to NaN."
             )
         self.filter_names = filter_names
         self.descriptions = descriptions

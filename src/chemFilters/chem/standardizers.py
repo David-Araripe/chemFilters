@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Utility modules with functions for the chemFilters.chem subpackage."""
-import warnings
 from functools import partial
 from importlib.util import find_spec
 from multiprocessing import Pool
@@ -34,9 +33,10 @@ class ChemStandardizer(MoleculeHandler):
         method: str = "chembl",
         n_jobs: int = 5,
         isomeric: bool = True,
-        progress: bool = True,
-        verbose: bool = False,
-        from_smi: bool = True,
+        progress: bool = False,
+        verbose: bool = True,
+        from_smi: bool = False,
+        **kwargs,
     ) -> None:
         """Initializes the ChemStandardizer class.
 
@@ -46,9 +46,11 @@ class ChemStandardizer(MoleculeHandler):
                 Defaults to "chembl". "canon" is rdkit's SMILES canonicalization.
             n_jobs: number of jobs running in parallel. Defaults to 5.
             isomeric: output smiles with isomeric information. Defaults to True.
-            progress: display a progress bar with tqdm. Defaults to True.
-            verbose: if false, silences rdkit errors. Defaults to False.
+            progress: display a progress bar with tqdm. Defaults to False.
+            verbose: if false, silences rdkit errors. Defaults to True.
             from_smi: if True, the standardizer will expect SMILES strings as input.
+                Defaults to False.
+            kwargs: additional keyword arguments to pass to the standardizer.
 
         Raises:
             ImportError: if method is "papyrus" but the optional dependency is not
@@ -56,13 +58,17 @@ class ChemStandardizer(MoleculeHandler):
             ValueError: when an invalid method is passed.
         """
         if method.lower() == "chembl":
-            self.standardizer = partial(self.chemblStandardizer, isomeric=isomeric)
+            self.standardizer = partial(
+                self.chemblStandardizer, isomeric=isomeric, **kwargs
+            )
         elif method.lower() == "canon":
-            self.standardizer = partial(molToCanon, isomeric=isomeric)
+            self.standardizer = partial(molToCanon, isomeric=isomeric, **kwargs)
         elif method.lower() == "papyrus":
             # avoid import since it's not a required dependency
             if find_spec("papyrus_structure_pipeline"):
-                self.standardizer = partial(self.papyrusStandardizer, isomeric=isomeric)
+                self.standardizer = partial(
+                    self.papyrusStandardizer, isomeric=isomeric, **kwargs
+                )
             else:
                 raise ImportError(
                     "Optional dependency not found. Please install it by running:\n"
@@ -82,7 +88,7 @@ class ChemStandardizer(MoleculeHandler):
 
         Args:
             stdin: standard input; a list of SMILES strings or rdkit.Chem.Mol objects
-                depending on the value of self.from_smi.
+                depending on the value of self._from_smi.
 
         Returns:
             A list of standardized SMILES strings.
@@ -142,6 +148,8 @@ class ChemStandardizer(MoleculeHandler):
             standardized smiles string
         """
         mol = self._mol_handler(stdin)
+        if mol is None:
+            return None
         standard_mol = chembl_std.standardize_mol(mol, **kwargs)
         standard_smi = Chem.MolToSmiles(
             standard_mol, kekuleSmiles=False, canonical=True, isomericSmiles=isomeric
@@ -158,9 +166,9 @@ class InchiHandling(MoleculeHandler):
         self,
         convert_to: str,
         n_jobs: int = 5,
-        progress: bool = True,
-        verbose: bool = False,
-        from_smi: bool = True,
+        progress: bool = False,
+        verbose: bool = True,
+        from_smi: bool = False,
     ) -> None:
         """Initialize the InchiHandling class.
 
@@ -168,8 +176,10 @@ class InchiHandling(MoleculeHandler):
             convert_to: what to convert the smiles to. Can be "inchi", "inchikey" or
                 "connectivity".
             n_jobs: Number of jobs for processing in parallel. Defaults to 5.
-            progress: whether to show the progress bar. Defaults to True.
-            verbose: if false, will hide the rdkit warnings. Defaults to False.
+            progress: whether to show the progress bar. Defaults to False.
+            verbose: if false, will hide the rdkit warnings. Defaults to True.
+            from_smi: if True, the standardizer will expect SMILES strings as input.
+                Defaults to False.
 
         Raises:
             ValueError: if the convert_to argument is not one of the three options.

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Contains a class for managing custom fonts and functions to render molecules into figures."""
+"""Contains classes for finding custom fonts & rendering molecules into figures."""
 
 import importlib
 import logging
@@ -19,10 +19,11 @@ import PIL
 from matplotlib import cm
 from PIL import Image, ImageDraw, ImageFont
 from rdkit import Chem
-from rdkit.Chem import AllChem, Draw
+from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import rdMolDraw2D
 
-from .utils import geometric_mean, smi_to_mol
+from .chem.interface import MoleculeHandler
+from .utils import geometric_mean
 
 
 class FontManager:
@@ -114,7 +115,7 @@ class FontManager:
         return font_dict
 
 
-class MolPlotter:
+class MolPlotter(MoleculeHandler):
     def __init__(
         self,
         from_smi: bool = True,
@@ -127,11 +128,11 @@ class MolPlotter:
     ) -> None:
         self._cmap = cmap
         self._size = size
-        self._from_smi = from_smi
         self._font_size = font_size
         self._font_name = font_name
         self._label_loc = label_loc
         self._n_jobs = n_jobs
+        super().__init__(from_smi)
 
     @property
     def available_fonts(self):
@@ -144,11 +145,8 @@ class MolPlotter:
         return fm.available_fonts
 
     def _process_mols(self, mols):
-        if self._from_smi:
-            with Pool(self._n_jobs) as p:
-                return p.map(smi_to_mol, mols)
-        else:
-            return mols
+        with Pool(self._n_jobs) as p:
+            return p.map(self._mol_handler, mols)
 
     def _add_mol_label(
         self,
@@ -284,7 +282,7 @@ class MolPlotter:
         for sublist in images:
             list_of_hstacked.append(np.hstack([np.asarray(img) for img in sublist]))
         # Vertically stacking horizontal arrays
-        for item in list_of_hstacked:
+        for _item in list_of_hstacked:
             final_img = np.vstack([hstack for hstack in list_of_hstacked])
         # Creating and returning image from array
         final_img = Image.fromarray(final_img)
@@ -416,7 +414,7 @@ class MolPlotter:
 
         color_dict = {}
         colors = self._substructure_palette(len(unique_smarts), cmap=cmap, alpha=alpha)
-        for smarts, descr, color in zip(unique_smarts, unique_descrip, colors):
+        for smarts, _descr, color in zip(unique_smarts, unique_descrip, colors):
             # Create the patches that are used for the labels
             pttrn = Chem.MolFromSmarts(smarts)
             matches = mol.GetSubstructMatch(pttrn)
@@ -447,7 +445,7 @@ class MolPlotter:
             fig, ax = plt.subplots(figsize=(5, 5))
         patches = []
         colors = self._substructure_palette(len(substructures), cmap=cmap, alpha=alpha)
-        for smarts, descr, color in zip(substructures, descriptions, colors):
+        for _smarts, descr, color in zip(substructures, descriptions, colors):
             patches.append(
                 mpatches.Patch(facecolor=color, label=descr, edgecolor="black")
             )
