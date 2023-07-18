@@ -23,7 +23,7 @@ See available filters and visualization methods below:
 - [chemFilters](#chemfilters)
   - [Overview:](#overview)
   - [Installation](#installation)
-  - [Filtering datasets](#filtering-datasets)
+  - [Filtering Compounds](#filtering-datasets)
     - [RdkitFilters](#rdkitfilters)
     - [Purchasability filters](#purchasability-filters)
     - [Silly molecules filters](#silly-molecules-filters)
@@ -39,7 +39,7 @@ See available filters and visualization methods below:
 python -m pip install git+https://github.com/David-Araripe/chemFilters.git
 ```
 
-## Filtering datasets
+## Filtering Compounds
 
 ### RdkitFilters
 ``` Python
