@@ -10,27 +10,33 @@ import pandas as pd
 from molbloom import _DEFAULT_PATH, _load_filter, buy, catalogs
 from rdkit import Chem
 
+from .chem.interface import MoleculeHandler
 from .chem.standardizers import ChemStandardizer
 
 
-class MolbloomFilters:
+class MolbloomFilters(MoleculeHandler):
     """Wrapper class for molbloom. Requires molbloom to be installed.
 
     Arguments:
-        from_smi: treats standard inputs (stdin) as smiles. Defaults to True.
-        standardize: whether to standardize `stdin` or not. Defaults to True.
+        from_smi: treats standard inputs (stdin) as smiles. Defaults to False.
+        standardize: whether to standardize `stdin` or not. Defaults to False.
         std_method: SMILES/mol standardization method. Available: `canon`, `chembl`,
             `papyrus`. Defaults to "chembl".
         n_jobs: number of jobs to run in parallel. Defaults to 1."""
 
     def __init__(
-        self, from_smi=True, standardize=True, std_method="chembl", n_jobs=1, **kwargs
+        self,
+        from_smi: bool = False,
+        standardize: bool = False,
+        std_method: str = "chembl",
+        n_jobs=1,
+        **kwargs,
     ):
         """Initalize the MolbloomFilters class.
 
         Args:
-            from_smi: treats standard inputs (stdin) as smiles. Defaults to True.
-            standardize: whether to standardize `stdin` or not. Defaults to True.
+            from_smi: treats standard inputs (stdin) as smiles. Defaults to False.
+            standardize: whether to standardize `stdin` or not. Defaults to False.
             std_method: SMILES/mol standardization method. Available: `canon`, `chembl`,
                 `papyrus`. Defaults to "chembl".
             n_jobs: number of jobs to run in parallel. Defaults to 1.
@@ -44,8 +50,9 @@ class MolbloomFilters:
         self._std_method = std_method.lower()
         self._kwargs = kwargs
         self._n_jobs = n_jobs
+        super().__init__(from_smi)
 
-    def _get_standardizer(self, std_method, from_smi=True, **kwargs):
+    def _get_standardizer(self, std_method: str, from_smi: bool, **kwargs):
         return ChemStandardizer(method=std_method, from_smi=from_smi, **kwargs)
 
     def get_catalogs(self):
@@ -62,12 +69,12 @@ class MolbloomFilters:
 
     def buy_smi(self, smi: str, catalog: str = "zinc-instock"):
         """Wrapper of molbloom.buy. Returns True if the SMILES is probably in the
-        catalog, False if it is definitely not"""
+        catalog, False if it is definitely not."""
         try:
             # canonicalization off as it's handled by the smiles standardizer
             return buy(smi, catalog=catalog, canonicalize=False)
         except Exception as e:
-            print(f"An error occurred: {str(e)}")
+            print(f"An error occurred: {str(e)} on buying {smi} from {catalog}")
             return None
 
     def get_flagging_df(self, stdin: List[Union[str, Chem.Mol]]):
@@ -85,6 +92,9 @@ class MolbloomFilters:
         """
         if self._standardize:
             smiles = self._smiles_standardizer(stdin)
+        else:
+            with Pool(self._n_jobs) as p:
+                smiles = p.map(self._output_smi, stdin)
 
         all_params = list(product(smiles, self._catalogs))
         with Pool(self._n_jobs) as p:

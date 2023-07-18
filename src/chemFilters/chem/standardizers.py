@@ -83,8 +83,8 @@ class ChemStandardizer(MoleculeHandler):
         self.verbose = verbose
 
     def __call__(self, stdin: List[Union[str, Chem.Mol]]) -> List[str]:
-        """Calls the standardizer on a list of SMILES strings to perform the
-        standardization according to the settings set at initialization.
+        """Calls the standardizer on a list of SMILES strings / Chem.Mol objects to
+        perform the standardization according to the settings set at initialization.
 
         Args:
             stdin: standard input; a list of SMILES strings or rdkit.Chem.Mol objects
@@ -100,8 +100,7 @@ class ChemStandardizer(MoleculeHandler):
                 vals = list(tqdm(p.imap(self.standardizer, stdin), total=len(stdin)))
             else:
                 vals = p.map(self.standardizer, stdin)
-        # restore the logger level
-        RDKitVerbosityON()
+        RDKitVerbosityON()  # restore the logger level
         return vals
 
     def papyrusStandardizer(
@@ -117,13 +116,15 @@ class ChemStandardizer(MoleculeHandler):
         For more information: https://github.com/OlivierBeq/Papyrus_structure_pipeline
 
         Args:
-            smi: single smiles string.
+            stdin: standard input; single SMILES strings or single rdkit.Chem.Mol object
+                depending on the value of self._from_smi.
             isomeric: output isomerc smiles. Defaults to True.
+            kwargs: aditional keyword arguments to pass to the standardizer.
 
         Returns:
             standardized smiles string
         """
-        mol = self._mol_handler(stdin)
+        mol = self._output_mol(stdin)
         try:
             standard_mol = papyrus_std.standardize(mol, **kwargs)
         except RuntimeError:
@@ -136,18 +137,22 @@ class ChemStandardizer(MoleculeHandler):
         )
         return standard_smi
 
-    def chemblStandardizer(self, stdin: str, isomeric: bool = True, **kwargs) -> str:
+    def chemblStandardizer(
+        self, stdin: Union[str, Chem.Mol], isomeric: bool = True, **kwargs
+    ) -> str:
         """Uses the ChEMBL standardizer to standardize a SMILES string. Accepts extra
         keyword arguments that will be passed to the standardizer
 
         Args:
-            smi: single smiles string.
+            stdin: standard input; single SMILES strings or single rdkit.Chem.Mol object
+                depending on the value of self._from_smi.
             isomeric: output isomeric smiles. Defaults to True.
+            kwargs: additional keyword arguments to pass to the standardizer.
 
         Returns:
             standardized smiles string
         """
-        mol = self._mol_handler(stdin)
+        mol = self._output_mol(stdin)
         if mol is None:
             return None
         standard_mol = chembl_std.standardize_mol(mol, **kwargs)
@@ -198,10 +203,20 @@ class InchiHandling(MoleculeHandler):
         super().__init__(from_smi)
 
     def __call__(self, stdin: list) -> list:
+        """Calls the standardizer on a list of SMILES strings / Chem.Mol objects to
+        perform the standardization according to the settings set at initialization.
+
+        Args:
+            stdin: standard input; a list of SMILES strings or rdkit.Chem.Mol objects
+                depending on the value of self._from_smi.
+
+        Returns:
+            A list of standardized SMILES strings.
+        """
         if not self.verbose:
             RDKitVerbosityOFF()
         with Pool(self.n_jobs) as p:
-            mols = p.map(self._mol_handler, stdin)
+            mols = p.map(self._output_mol, stdin)
             if self.progress:
                 vals = list(tqdm(p.imap(self.converter, mols), total=len(mols)))
             else:

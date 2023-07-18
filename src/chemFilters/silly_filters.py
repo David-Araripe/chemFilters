@@ -11,10 +11,10 @@ from rdkit import Chem
 
 from chemFilters.chem.standardizers import ChemStandardizer
 
-from .utils import smi_to_mol
+from .chem.interface import MoleculeHandler
 
 
-class SillyMolSpotterFilter:
+class SillyMolSpotterFilter(MoleculeHandler):
     """Wrapper class to molspotter, a tool based on Pat Water's silly walks filter.
     It helps finding unusual molecules in a dataset based the detection of unusual bits
     on a hashed ECFP fingerprint. For more information, see the original repo:
@@ -48,7 +48,7 @@ class SillyMolSpotterFilter:
         self._std_method = std_method.lower()
         self._kwargs = kwargs
         self._n_jobs = n_jobs
-        self._from_smi = from_smi
+        super().__init__(from_smi)
 
     def _get_standardizer(self, std_method, from_smi=True, n_jobs=1, **kwargs):
         return ChemStandardizer(
@@ -63,17 +63,17 @@ class SillyMolSpotterFilter:
             "papyrus": SillyMolSpotter.from_pretrained("papyrus"),
         }
 
-    def score_smi(self, smi: str, spotter_name: str = "chembl"):
+    def score_compound(self, stdin: str, spotter_name: str = "chembl"):
         """Score a SMILES string with a pretrained spotter, indicating how silly the
         processed molecule is."""
         spotter = self._spotters[spotter_name]
         try:
-            mol = smi_to_mol(smi)
+            mol = self._output_mol(stdin)
             return spotter.score_mol(mol)
         except Exception as e:
             print(
                 f"An error occurred: {str(e)} when scoring "
-                f"{smi} with {spotter_name}."
+                f"{stdin} with {spotter_name}."
             )
             return None
 
@@ -91,10 +91,13 @@ class SillyMolSpotterFilter:
             smiles = self._smiles_standardizer(stdin)
             if smiles == []:
                 raise ValueError("No valid SMILES found in the input.")
+        else:
+            with Pool(self._n_jobs) as p:
+                smiles = p.map(self._output_smi, stdin)
 
         with Pool(self._n_jobs) as p:
             all_params = list(product(smiles, self._spotters.keys()))
-            results = p.starmap(self.score_smi, all_params)
+            results = p.starmap(self.score_compound, all_params)
 
         num_spotters = len(self._spotters)
         df = pd.DataFrame(

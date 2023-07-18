@@ -1,29 +1,11 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used in different modules of the chemFilters package."""
 
-import logging
-
 import numpy as np
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog
 
-
-def smi_to_mol(smi: str):
-    """Convert a SMILES string to a rdkit.Chem.Mol object."""
-    mol = Chem.MolFromSmiles(smi)
-    if mol is None:
-        logging.warn(f"Could not convert SMILES {smi} to rdkit.Chem.Mol")
-    return mol
-
-
-def smi_from_mol(mol: Chem.Mol):
-    """Convert a rdkit.Chem.Mol object to a SMILES string."""
-    try:
-        smi = Chem.MolToSmiles(mol)
-    except Exception as e:
-        logging.warn(f"Exception!! {e}\n" f"Could not convert {mol} to SMILES.")
-        return None
-    return smi
+from .chem.interface import mol_from_smi
 
 
 def get_catalog_match(mol: Chem.Mol, catalog: FilterCatalog, from_smi: bool = False):
@@ -33,7 +15,7 @@ def get_catalog_match(mol: Chem.Mol, catalog: FilterCatalog, from_smi: bool = Fa
     Used to get results in parallel using multiprocessing.Pool.
     """
     if from_smi:
-        mol = smi_to_mol(mol)
+        mol = mol_from_smi(mol)
     if mol is None:
         return None, None, None
     matches = catalog.GetMatches(mol)

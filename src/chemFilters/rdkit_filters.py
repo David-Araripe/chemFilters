@@ -11,10 +11,11 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
-from .utils import get_catalog_match, smi_from_mol
+from .chem.interface import MoleculeHandler, mol_to_smi
+from .utils import get_catalog_match
 
 
-class RdkitFilters:
+class RdkitFilters(MoleculeHandler):
     def __init__(self, filter_type="ALL", n_jobs=1, from_smi: bool = False) -> None:
         """Initiaze RdkitFilters object.
 
@@ -23,10 +24,10 @@ class RdkitFilters:
             n_jobs: number of jobs if wanted to run things in parallel. Defaults to 1.
             from_smi = if True, will do the conversion from SMILES to RDKit Mol object.
         """
-        self._from_smi = from_smi
         self.filter_type = filter_type
         self.filter = self._get_filter()
         self.n_jobs = n_jobs
+        super().__init__(from_smi=from_smi)
 
     @property
     def available_filters(self):
@@ -122,7 +123,7 @@ class RdkitFilters:
             final_df.insert(0, "SMILES", mols)
         else:
             with Pool(self.n_jobs) as p:
-                final_df.insert(0, "SMILES", p.map(smi_from_mol, mols))
+                final_df.insert(0, "SMILES", p.map(mol_to_smi, mols))
         if error_idx != []:
             final_df.loc[error_idx, "SMILES"] = np.nan
             logging.warn(
