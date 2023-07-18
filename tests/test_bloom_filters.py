@@ -33,6 +33,11 @@ class TestMolbloomFilters(unittest.TestCase):
         result_df = self.filterFunc.get_flagging_df(self.test_smiles)
         pd.testing.assert_frame_equal(result_df, self.expected_filtered_df)
 
+    def test_get_flagging_df_no_standardizer(self):
+        bloom_no_std = MolbloomFilters(from_smi=True, standardize=False)
+        result_df = bloom_no_std.get_flagging_df(self.test_smiles)
+        pd.testing.assert_frame_equal(result_df, self.expected_filtered_df)
+
     def tearDown(self) -> None:
         return super().tearDown()
 

@@ -23,12 +23,12 @@ class TestSillyMolSpotterFilter(unittest.TestCase):
         spotters = self.filterFunc._get_spotters()
         self.assertIsInstance(spotters, dict)
 
-    def test_score_smi(self):
+    def test_score_compound(self):
         try:
-            score = self.filterFunc.score_smi(self.test_smiles[0])
+            score = self.filterFunc.score_compound(self.test_smiles[0])
             self.assertIsNotNone(score)
         except Exception as e:
-            self.fail(f"test_score_smi raised an exception: {e}")
+            self.fail(f"test_score_compound raised an exception: {e}")
 
     def test_get_scoring_df(self):
         result_df = self.filterFunc.get_scoring_df(self.test_smiles)

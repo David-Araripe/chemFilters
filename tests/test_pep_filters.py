@@ -9,7 +9,7 @@ from chemFilters import PeptideFilters
 class TestPeptideFilters(unittest.TestCase):
     def setUp(self) -> None:
         self.testroot = Path(__file__).parent
-        self.filterFunc = PeptideFilters(filterType="all", njobs=1, from_smi=True)
+        self.filterFunc = PeptideFilters(filter_type="all", n_jobs=1, from_smi=True)
         self.test_smiles = (
             (self.testroot / "resources/testSmiles.smi").read_text().splitlines()
         )
@@ -20,6 +20,11 @@ class TestPeptideFilters(unittest.TestCase):
     def test_available_filters(self):
         filters = self.filterFunc.available_filters
         self.assertIsInstance(filters, dict)
+        # test initializing an invalid filter
+        with self.assertRaises(ValueError):
+            PeptideFilters(filter_type=6)
+        with self.assertRaises(ValueError):
+            PeptideFilters(filter_type="invalid")
 
     def test_filter_mols(self):
         filtered_mols = self.filterFunc.filter_mols(self.test_smiles)

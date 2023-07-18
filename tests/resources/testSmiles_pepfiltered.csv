@@ -1,7 +1,7 @@
-NaturalLAminoAcids,NaturalLDAminoAcids,NaturalAminoAcidDerivatives,NonNaturalAminoAcidDerivatives,AllAmineAndAcid
-False,False,False,False,False
-False,False,False,False,False
-False,False,False,False,False
-False,False,False,False,True
-False,False,False,False,False
-False,False,False,False,True
+SMILES,NaturalLAminoAcids,NaturalLDAminoAcids,NaturalAminoAcidDerivatives,NonNaturalAminoAcidDerivatives,AllAmineAndAcid
+CCC1=[O+][Cu-3]2([O+]=C(CC)C1)[O+]=C(CC)CC(CC)=[O+]2,False,False,False,False,False
+C(=Cc1ccccc1)C1=[O+][Cu-3]2([O+]=C(C=Cc3ccccc3)CC(c3ccccc3)=[O+]2)[O+]=C(c2ccccc2)C1,False,False,False,False,False
+CC(=O)N1c2ccccc2Sc2c1ccc1ccccc21,False,False,False,False,False
+Nc1ccc(C=Cc2ccc(N)cc2S(=O)(=O)O)c(S(=O)(=O)O)c1,False,False,False,False,True
+O=S(=O)(O)CCS(=O)(=O)O,False,False,False,False,False
+CCOP(=O)(Nc1cccc(Cl)c1)OCC,False,False,False,False,True
