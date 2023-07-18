@@ -7,7 +7,7 @@ name = "chem-filters"
 dynamic = ["version"]
 description = "A Python package wrapping several chemical structure filtering utilities."
 readme = { file = "README.md", content-type = "text/markdown" }
-requires-python = ">=3.7" # TODO: test...
+requires-python = ">=3.8"
 license = { file = "LICENSE" }
 keywords = ["chemical structure", "filtering", "cheminformatics", "pains"]
 authors = [{ name = "David Araripe", email = "david.araripe17@gmail.com" }]
@@ -15,12 +15,11 @@ maintainers = [{ name = "David Araripe", email = "david.araripe17@gmail.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",     # To test...
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.7",
 ]
 
 dependencies = [
@@ -39,7 +38,14 @@ full = [
   "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
   "tables",
 ]
-dev = ["tox", "ruff", "isort", "black"]
+dev = [
+  "tox",
+  "ruff",
+  "isort",
+  "black",
+  "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
+  "tables"
+]
 
 [project.urls]
 homepage = "https://github.com/David-Araripe/chemFilters"
@@ -52,17 +58,12 @@ include-package-data = true
 [tool.setuptools.dynamic]
 version = { attr = "chemFilters.__version__" }
 
-[tool.ruff]
-line-length = 88
-update-check = false
-target-version = "py38"
-fix = true
-
 [tool.isort]
 profile = "black"
 
 [tool.black]
-target-version = ['py38', 'py39']
+line-length = 88
+target-version = ['py38']
 required-version = '23.1.0'
 exclude = '''
 (
@@ -78,6 +79,41 @@ exclude = '''
   | buck-out
   | build
   | dist
-  | setup.py
 )
 '''
+
+[tool.ruff]
+# Enable the pycodestyle (`E`) and Pyflakes (`F`) rules.
+select = ["E", "F", "B", "W"]
+ignore = []
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+# Same as Black.
+line-length = 88
+
+# Assume Python 3.9.
+target-version = "py39"

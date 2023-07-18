@@ -11,7 +11,7 @@ from rdkit import Chem
 
 from chemFilters.chem.standardizers import ChemStandardizer
 
-from .chem.interface import MoleculeHandler
+from .chem.interface import MoleculeHandler, mol_from_smi
 
 
 class SillyMolSpotterFilter(MoleculeHandler):
@@ -63,17 +63,17 @@ class SillyMolSpotterFilter(MoleculeHandler):
             "papyrus": SillyMolSpotter.from_pretrained("papyrus"),
         }
 
-    def score_compound(self, stdin: str, spotter_name: str = "chembl"):
+    def score_smi(self, smi: str, spotter_name: str = "chembl"):
         """Score a SMILES string with a pretrained spotter, indicating how silly the
         processed molecule is."""
         spotter = self._spotters[spotter_name]
         try:
-            mol = self._output_mol(stdin)
+            mol = mol_from_smi(smi)
             return spotter.score_mol(mol)
         except Exception as e:
             print(
                 f"An error occurred: {str(e)} when scoring "
-                f"{stdin} with {spotter_name}."
+                f"{smi} with {spotter_name}."
             )
             return None
 
@@ -97,7 +97,7 @@ class SillyMolSpotterFilter(MoleculeHandler):
 
         with Pool(self._n_jobs) as p:
             all_params = list(product(smiles, self._spotters.keys()))
-            results = p.starmap(self.score_compound, all_params)
+            results = p.starmap(self.score_smi, all_params)
 
         num_spotters = len(self._spotters)
         df = pd.DataFrame(
