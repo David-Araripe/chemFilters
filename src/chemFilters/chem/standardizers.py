@@ -155,7 +155,7 @@ class ChemStandardizer(MoleculeHandler):
         mol = self._output_mol(stdin)
         if mol is None:
             return None
-        standard_mol = chembl_std.standardize_mol(mol, **kwargs)
+        standard_mol = chembl_std.standardize_mol(mol, sanitize=True, **kwargs)
         standard_smi = Chem.MolToSmiles(
             standard_mol, kekuleSmiles=False, canonical=True, isomericSmiles=isomeric
         )
