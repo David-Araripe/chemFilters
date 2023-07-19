@@ -30,11 +30,11 @@ dependencies = [
   "chembl_structure_pipeline >= 1.2.0",
   "molspotter @ git+https://github.com/OlivierBeq/molspotter.git#master",
   "molbloom @ git+https://github.com/whitead/molbloom.git#master",
-  "smallworld-api",
 ]
 
 [project.optional-dependencies]
 full = [
+  "smallworld-api",
   "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
   "tables",
 ]
@@ -43,6 +43,7 @@ dev = [
   "ruff",
   "isort",
   "black",
+  "smallworld-api",
   "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
   "tables"
 ]
