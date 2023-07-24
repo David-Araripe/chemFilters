@@ -190,11 +190,11 @@ class InchiHandling(MoleculeHandler):
             ValueError: if the convert_to argument is not one of the three options.
         """
         if convert_to.lower() == "inchi":
-            self.converter = partial(molToInchi, verbose=verbose)
+            self.converter = molToInchi
         elif convert_to.lower() == "inchikey":
-            self.converter = partial(molToInchiKey, verbose=verbose)
+            self.converter = molToInchiKey
         elif convert_to.lower() == "connectivity":
-            self.converter = partial(molToConnectivity, verbose=verbose)
+            self.converter = molToConnectivity
         else:
             raise ValueError(f"Invalid convertion method: {self.convert_to}")
         self.n_jobs = n_jobs
