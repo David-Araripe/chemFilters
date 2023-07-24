@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used by the chemFilters.chem subpackage."""
 
-import logging
-
 from rdkit import Chem, RDLogger
 from rdkit.Chem import inchi
 
@@ -21,40 +19,22 @@ def RDKitVerbosityOFF():
     return lg
 
 
-def molToConnectivity(smi, verbose: bool = True):
+def molToConnectivity(mol: Chem.Mol):
     """Converts a SMILES string to a connectivity string."""
-    try:
-        mol = Chem.MolFromSmiles(smi)
-        connectivity = Chem.MolToInchiKey(mol).split("-")[0]
-        return connectivity
-    except TypeError:
-        if verbose:
-            logging.warn("Error converting SMILES to connectivity: ", smi)
-        return None
+    connectivity = Chem.MolToInchiKey(mol).split("-")[0]
+    return connectivity
 
 
-def molToInchiKey(smi, verbose: bool = True):
+def molToInchiKey(mol: Chem.Mol):
     """Converts a SMILES string to an InChI string."""
-    try:
-        mol = Chem.MolFromSmiles(smi)
-        connectivity = Chem.MolToInchiKey(mol)
-        return connectivity
-    except TypeError:
-        if verbose:
-            logging.warn("Error converting SMILES to connectivity: ", smi)
-        return None
+    connectivity = Chem.MolToInchiKey(mol)
+    return connectivity
 
 
-def molToInchi(smi, verbose: bool = True):
+def molToInchi(mol: Chem.Mol):
     """Converts a SMILES string to an InChI string."""
-    try:
-        mol = Chem.MolFromSmiles(smi)
-        inchi_str = inchi.MolToInchi(mol)
-        return inchi_str
-    except TypeError:
-        if verbose:
-            logging.warn("Error converting SMILES to InChI: ", inchi)
-        return None
+    inchi_str = inchi.MolToInchi(mol)
+    return inchi_str
 
 
 def molToCanon(mol, isomeric: bool = True):
