@@ -10,7 +10,7 @@ from functools import partial
 from io import BytesIO
 from multiprocessing import Pool
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -159,10 +159,9 @@ class MolPlotter(MoleculeHandler):
         fm = FontManager(include_plt=include_plt)
         return fm.available_fonts
 
-    def _stdin_to_mols(self, stdin):
+    def _stdin_to_mol(self, stdin):
         if self._from_smi:
-            with Pool(self._n_jobs) as p:
-                return p.map(self._output_mol, stdin)
+            return self._output_mol(stdin)
         else:
             return stdin
 
@@ -322,7 +321,7 @@ class MolPlotter(MoleculeHandler):
         Returns:
             a PIL.Image.Image object.
         """
-        mol = self._output_mol(mol)
+        mol = self._stdin_to_mol(mol)
         if match_struct is not None:
             if isinstance(match_struct, Chem.rdchem.Mol):
                 AllChem.Compute2DCoords(match_struct)
@@ -498,8 +497,7 @@ class MolGridPlotter(MolPlotter):
     """
 
     def __init__(self, n_jobs: int = 1, from_smi=False, **kwargs):
-        super().__init__(n_jobs=n_jobs, **kwargs)
-        super(super()).__init__(from_smi=from_smi)
+        super().__init__(from_smi=from_smi, n_jobs=n_jobs, **kwargs)
 
     def mol_grid_png(
         self,
@@ -523,7 +521,6 @@ class MolGridPlotter(MolPlotter):
         Returns:
             PIL.Image.Image
         """
-        mols = self._stdin_to_mols(mols)
         with Pool(self._n_jobs) as p:
             images = p.map(partial(self.render_mol, match_struct=scaff_pose), mols)
         if labels is not None:
@@ -534,7 +531,7 @@ class MolGridPlotter(MolPlotter):
             image = image.convert("L")
         return image
 
-    def mol_structmatch_grid(
+    def mol_structmatch_grid_png(
         self,
         mols: list,
         substructs: list,
@@ -557,7 +554,6 @@ class MolGridPlotter(MolPlotter):
         Returns:
             PIL.Image.Image
         """
-        mols = self._stdin_to_mols(mols)
         partial_function = partial(self.render_with_matches, scaff_pose=scaff_pose)
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
@@ -574,7 +570,7 @@ class MolGridPlotter(MolPlotter):
             image = image.convert("L")
         return image
 
-    def mol_structmatch_color_grid(
+    def mol_structmatch_color_grid_png(
         self,
         mols: list,
         descriptions: List[str],
@@ -598,7 +594,7 @@ class MolGridPlotter(MolPlotter):
         Returns:
             PIL.Image.Image
         """
-        mols = self._stdin_to_mols(mols)
+        mols = self._stdin_to_mol(mols)
         partial_function = partial(
             self.render_with_colored_matches, scaff_pose=scaff_pose
         )

@@ -124,11 +124,11 @@ filter_names, description, substructs = chemFilter.filter_mols(mols)
 grid_plotter = MolGridPlotter(
     n_jobs=1, from_smi=False, font_size=15, size=(250, 250), font_name="Humor-Sans"
 )
-img = grid_plotter.mol_structmatch_grid(
+img = grid_plotter.mol_structmatch_grid_png(
     mols, substructs=substructs, labels=labels, n_cols=2
 )
 display(img)
-img.save("substruct_grid.png")
+img.save("substruct_grid.png") # saving the figure
 ```
 <p align="center">
   <img src="./figures/substruct_grid.png" alt="drawing" width="450"/>
@@ -137,7 +137,7 @@ img.save("substruct_grid.png")
 ### Rendering substructure matches with colors:
 
 ``` Python
-from chemFilter import RdkitFilters
+from chemFilters import RdkitFilters
 import matplotlib.pyplot as plt
 
 chemFilter = RdkitFilters(filter_type="NIH")
