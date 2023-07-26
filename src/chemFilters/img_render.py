@@ -116,9 +116,24 @@ class FontManager:
 
 
 class MolPlotter(MoleculeHandler):
+    """MolPlotter class to render molecules into images. It uses RDKit's
+    DrawMolecule method to generate the images. The images can be rendered with
+    labels and/or substructure matches.
+
+    Args:
+        from_smi: output images directly from smiles. Defaults to False.
+        size: size of the output images. Defaults to (500, 500).
+        cmap: colormap for `render_with_color` method. Defaults to "rainbow".
+        font_name: font name found by img_render.FondManager class.
+            Defaults to "DejaVu Sans".
+        font_size: size of the font patched to the image. Defaults to 15.
+        label_loc: font placement; either `top` or `bottom`. Defaults to "bottom".
+        n_jobs: number of jobs to run in parallel. Defaults to 1.
+    """
+
     def __init__(
         self,
-        from_smi: bool = True,
+        from_smi: bool = False,
         size: tuple = (500, 500),
         cmap: str = "rainbow",
         font_name: str = "DejaVu Sans",
@@ -144,9 +159,12 @@ class MolPlotter(MoleculeHandler):
         fm = FontManager(include_plt=include_plt)
         return fm.available_fonts
 
-    def _process_mols(self, mols):
-        with Pool(self._n_jobs) as p:
-            return p.map(self._output_mol, mols)
+    def _stdin_to_mols(self, stdin):
+        if self._from_smi:
+            with Pool(self._n_jobs) as p:
+                return p.map(self._output_mol, stdin)
+        else:
+            return stdin
 
     def _add_mol_label(
         self,
@@ -463,8 +481,25 @@ class MolPlotter(MoleculeHandler):
 
 
 class MolGridPlotter(MolPlotter):
-    def __init__(self, n_jobs: int = 1, **kwargs):
+    """MolGridPlotter class to render molecules into grids of images. It uses RDKit's
+    DrawMolecule method to generate the images and PIL to patch images together.
+    The images can be rendered with labels and/or substructure matches, similar to its
+    parent class.
+
+    Args:
+        from_smi: output images directly from smiles. Defaults to False.
+        size: size of the output images. Defaults to (500, 500).
+        cmap: colormap for `render_with_color` method. Defaults to "rainbow".
+        font_name: font name found by img_render.FondManager class.
+            Defaults to "DejaVu Sans".
+        font_size: size of the font patched to the image. Defaults to 15.
+        label_loc: font placement; either `top` or `bottom`. Defaults to "bottom".
+        n_jobs: number of jobs to run in parallel. Defaults to 1.
+    """
+
+    def __init__(self, n_jobs: int = 1, from_smi=False, **kwargs):
         super().__init__(n_jobs=n_jobs, **kwargs)
+        super(super()).__init__(from_smi=from_smi)
 
     def mol_grid_png(
         self,
@@ -488,7 +523,7 @@ class MolGridPlotter(MolPlotter):
         Returns:
             PIL.Image.Image
         """
-        mols = self._process_mols(mols)
+        mols = self._stdin_to_mols(mols)
         with Pool(self._n_jobs) as p:
             images = p.map(partial(self.render_mol, match_struct=scaff_pose), mols)
         if labels is not None:
@@ -522,7 +557,7 @@ class MolGridPlotter(MolPlotter):
         Returns:
             PIL.Image.Image
         """
-        mols = self._process_mols(mols)
+        mols = self._stdin_to_mols(mols)
         partial_function = partial(self.render_with_matches, scaff_pose=scaff_pose)
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
@@ -563,7 +598,7 @@ class MolGridPlotter(MolPlotter):
         Returns:
             PIL.Image.Image
         """
-        mols = self._process_mols(mols)
+        mols = self._stdin_to_mols(mols)
         partial_function = partial(
             self.render_with_colored_matches, scaff_pose=scaff_pose
         )
