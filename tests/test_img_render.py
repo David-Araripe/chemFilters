@@ -3,7 +3,7 @@ import unittest
 import PIL
 from rdkit import Chem
 
-from chemFilters.img_render import FontManager, MolPlotter
+from chemFilters.img_render import FontManager, MolGridPlotter, MolPlotter
 
 
 class TestFontManager(unittest.TestCase):
@@ -39,12 +39,12 @@ class TestMolPlotter(unittest.TestCase):
         self.assertIsInstance(self.plotter.available_fonts, dict)
         self.assertTrue(len(self.plotter.available_fonts) > 0)
 
-    def test_process_mols(self):
+    def test_stdin_to_mols(self):
         mol_list = [
             Chem.MolFromSmiles("CC(=O)OC1=CC=CC=C1C(=O)O"),
             Chem.MolFromSmiles("CC(=O)OC1=CC=CC=C1C(=O)O"),
         ]
-        result = self.plotter._process_mols(mol_list)
+        result = self.plotter._stdin_to_mols(mol_list)
         self.assertEqual(len(result), 2)
         self.assertIsInstance(result[0], Chem.rdchem.Mol)
 
@@ -76,6 +76,42 @@ class TestMolPlotter(unittest.TestCase):
         """Define the teardown method."""
         del self.plotter
         del self.molecule
+
+
+class TestMolGridPlotter(unittest.TestCase):
+    def setUp(self):
+        """Define the setup method."""
+        self.grid_plotter = MolGridPlotter(from_smi=False)
+        self.smiles = ["CC(=O)OC1=CC=CC=C1C(=O)O", "CC(=O)OC1=CC=CC=C1C(=O)O"]
+        self.molecules = [Chem.MolFromSmiles(smi) for smi in self.smiles]
+        self.labels = ["test_label_1", "test_label_2"]
+        self.substructs = [Chem.MolFromSmiles("C(=O)O"), Chem.MolFromSmiles("C(=O)O")]
+
+    def test_available_fonts(self):
+        self.assertIsInstance(self.grid_plotter.available_fonts, dict)
+        self.assertTrue(len(self.grid_plotter.available_fonts) > 0)
+
+    def test_mol_grid_png(self):
+        result = self.grid_plotter.mol_grid_png(self.molecules, labels=self.labels)
+        self.assertIsInstance(result, PIL.Image.Image)
+
+    def test_mol_grid_png_from_smiles(self):
+        grid_plotter = MolGridPlotter(from_smi=True)
+        result = grid_plotter.mol_grid_png(self.smiles, labels=self.labels)
+        self.assertIsInstance(result, PIL.Image.Image)
+
+    def test_mol_structmatch_grid_png(self):
+        result = self.grid_plotter.mol_structmatch_grid_png(
+            self.molecules, substructs=self.substructs, labels=self.labels
+        )
+        self.assertIsInstance(result, PIL.Image.Image)
+
+    def tearDown(self):
+        """Define the teardown method."""
+        del self.grid_plotter
+        del self.smiles
+        del self.molecules
+        del self.labels
 
 
 if __name__ == "__main__":
