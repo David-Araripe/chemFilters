@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Utility modules with functions for the chemFilters.chem subpackage."""
+import logging
 from functools import partial
 from importlib.util import find_spec
 from multiprocessing import Pool
@@ -134,7 +135,7 @@ class ChemStandardizer(MoleculeHandler):
         try:
             standard_mol = papyrus_std.standardize(mol, **kwargs)
         except RuntimeError:
-            print("Error standardizing molecule: ", stdin)
+            logging.exception("Error standardizing molecule: ", stdin)
             standard_mol = None
         return standard_mol
 
@@ -154,7 +155,12 @@ class ChemStandardizer(MoleculeHandler):
         mol = self._output_mol(stdin)
         if mol is None:
             return None
-        standard_mol = chembl_std.standardize_mol(mol, sanitize=True, **kwargs)
+        try:
+            standard_mol = chembl_std.standardize_mol(mol, sanitize=True, **kwargs)
+        except Exception as e:
+            logging.exception("Error standardizing molecule: ", stdin)
+            logging.exception(e)
+            standard_mol = None
         return standard_mol
 
 
