@@ -10,7 +10,7 @@ from functools import partial
 from io import BytesIO
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -23,7 +23,6 @@ from rdkit.Chem import AllChem
 from rdkit.Chem.Draw import rdMolDraw2D
 
 from .chem.interface import MoleculeHandler
-from .utils import geometric_mean
 
 
 class FontManager:
@@ -158,6 +157,14 @@ class MolPlotter(MoleculeHandler):
             include_plt = False
         fm = FontManager(include_plt=include_plt)
         return fm.available_fonts
+
+    @staticmethod
+    def geometric_mean(arr, axis=0):
+        """Calculate the geometric mean of an array. Adapted from SciPy:
+        https://github.com/scipy/blob/v1.10.1/scipy/stats/_stats.py.py#L199=L269"""
+        with np.errstate(divide="ignore"):
+            log_a = np.log(arr)
+        return np.exp(np.average(log_a, axis=axis))
 
     def _stdin_to_mol(self, stdin):
         if self._from_smi:
@@ -441,7 +448,7 @@ class MolPlotter(MoleculeHandler):
                 else:
                     color_dict.update({match: np.array(color)})
         color_dict = {
-            k: tuple(geometric_mean(v)) if v.ndim > 1 else tuple(v)
+            k: tuple(self.geometric_mean(v)) if v.ndim > 1 else tuple(v)
             for k, v in color_dict.items()
         }  # should be tuples
         img = self.render_mol(

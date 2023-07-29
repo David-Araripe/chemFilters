@@ -8,7 +8,7 @@ import pandas as pd
 from pepsift import PepSift, SiftLevel
 from rdkit import Chem
 
-from .chem.interface import MoleculeHandler
+from ..chem.interface import MoleculeHandler
 
 
 class PeptideFilters(MoleculeHandler):

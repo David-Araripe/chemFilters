@@ -10,8 +10,8 @@ import pandas as pd
 from molbloom import _DEFAULT_PATH, _load_filter, buy, catalogs
 from rdkit import Chem
 
-from .chem.interface import MoleculeHandler
-from .chem.standardizers import ChemStandardizer
+from ..chem.interface import MoleculeHandler
+from ..chem.standardizers import ChemStandardizer
 
 
 class MolbloomFilters(MoleculeHandler):

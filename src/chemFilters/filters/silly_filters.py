@@ -11,7 +11,7 @@ from rdkit import Chem
 
 from chemFilters.chem.standardizers import ChemStandardizer
 
-from .chem.interface import MoleculeHandler, mol_from_smi
+from ..chem.interface import MoleculeHandler, mol_from_smi
 
 
 class SillyMolSpotterFilter(MoleculeHandler):

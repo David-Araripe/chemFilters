@@ -9,7 +9,7 @@ import pandas as pd
 import pkg_resources
 from smallworld_api import SmallWorld
 
-from chemFilters.chem.standardizers import InchiHandling, SmilesStandardizer
+from .chem.standardizers import InchiHandling, SmilesStandardizer
 
 
 class SmilesSearcher:

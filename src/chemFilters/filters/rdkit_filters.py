@@ -11,7 +11,7 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
-from .chem.interface import MoleculeHandler, mol_to_smi
+from ..chem.interface import MoleculeHandler, mol_to_smi
 from .utils import get_catalog_match
 
 
