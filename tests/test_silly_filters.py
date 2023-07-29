@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 from rdkit import Chem
 
-from chemFilters.silly_filters import SillyMolSpotterFilter
+from chemFilters import SillyMolSpotterFilter
 
 
 class TestSillyMolSpotterFilter(unittest.TestCase):
