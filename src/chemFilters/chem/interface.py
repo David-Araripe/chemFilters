@@ -29,8 +29,9 @@ class MoleculeHandler:
     functionalitiy on other classes in the package.
     """
 
-    def __init__(self, from_smi=False) -> None:
+    def __init__(self, from_smi=False, isomeric=True) -> None:
         self._from_smi = from_smi
+        self._return_isomeric = isomeric
 
     def _output_mol(self, stdin: Union[str, Chem.Mol]):
         """Treat `stdin` as [str|Mol] depending on self.from_smiles and return a Mol
@@ -79,7 +80,10 @@ class MoleculeHandler:
                 smi = None
             elif isinstance(stdin, Chem.Mol):
                 smi = mol_to_smi(
-                    stdin, kekuleSmiles=False, canonical=True, isomericSmiles=True
+                    stdin,
+                    kekuleSmiles=False,
+                    canonical=True,
+                    isomericSmiles=self._return_isomeric,
                 )
             else:
                 raise ValueError(

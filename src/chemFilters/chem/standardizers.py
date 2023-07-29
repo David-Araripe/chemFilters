@@ -36,6 +36,7 @@ class ChemStandardizer(MoleculeHandler):
         progress: bool = False,
         verbose: bool = True,
         from_smi: bool = False,
+        return_smi: bool = True,
         **kwargs,
     ) -> None:
         """Initializes the ChemStandardizer class.
@@ -58,17 +59,13 @@ class ChemStandardizer(MoleculeHandler):
             ValueError: when an invalid method is passed.
         """
         if method.lower() == "chembl":
-            self.standardizer = partial(
-                self.chemblStandardizer, isomeric=isomeric, **kwargs
-            )
+            self.standardizer = partial(self.chemblStandardizer, **kwargs)
         elif method.lower() == "canon":
             self.standardizer = partial(molToCanon, isomeric=isomeric, **kwargs)
         elif method.lower() == "papyrus":
             # avoid import since it's not a required dependency
             if find_spec("papyrus_structure_pipeline"):
-                self.standardizer = partial(
-                    self.papyrusStandardizer, isomeric=isomeric, **kwargs
-                )
+                self.standardizer = partial(self.papyrusStandardizer, **kwargs)
             else:
                 raise ImportError(
                     "Optional dependency not found. Please install it by running:\n"
@@ -81,6 +78,11 @@ class ChemStandardizer(MoleculeHandler):
         self.n_jobs = n_jobs
         self.progress = progress
         self.verbose = verbose
+        self.return_smi = return_smi
+        self.method = method
+        self.smi_out_func = partial(
+            MoleculeHandler(from_smi=False, isomeric=isomeric)._output_smi
+        )
 
     def __call__(self, stdin: List[Union[str, Chem.Mol]]) -> List[str]:
         """Calls the standardizer on a list of SMILES strings / Chem.Mol objects to
@@ -100,13 +102,17 @@ class ChemStandardizer(MoleculeHandler):
                 vals = list(tqdm(p.imap(self.standardizer, stdin), total=len(stdin)))
             else:
                 vals = p.map(self.standardizer, stdin)
+            if self.return_smi and self.method != "canon":  # canon always returns smis
+                if self.progress:
+                    vals = list(tqdm(p.imap(self.smi_out_func, vals), total=len(vals)))
+                else:
+                    vals = p.map(self.smi_out_func, vals)
         RDKitVerbosityON()  # restore the logger level
         return vals
 
     def papyrusStandardizer(
         self,
         stdin: Union[str, Chem.Mol],
-        isomeric: bool = True,
         **kwargs,
     ) -> str:
         """Uses the Papyrus standardizer to standardize a SMILES string. By default,
@@ -130,16 +136,9 @@ class ChemStandardizer(MoleculeHandler):
         except RuntimeError:
             print("Error standardizing molecule: ", stdin)
             standard_mol = None
-        if standard_mol is None:
-            return None
-        standard_smi = Chem.MolToSmiles(
-            standard_mol, kekuleSmiles=False, canonical=True, isomericSmiles=isomeric
-        )
-        return standard_smi
+        return standard_mol
 
-    def chemblStandardizer(
-        self, stdin: Union[str, Chem.Mol], isomeric: bool = True, **kwargs
-    ) -> str:
+    def chemblStandardizer(self, stdin: Union[str, Chem.Mol], **kwargs) -> str:
         """Uses the ChEMBL standardizer to standardize a SMILES string. Accepts extra
         keyword arguments that will be passed to the standardizer
 
@@ -156,10 +155,7 @@ class ChemStandardizer(MoleculeHandler):
         if mol is None:
             return None
         standard_mol = chembl_std.standardize_mol(mol, sanitize=True, **kwargs)
-        standard_smi = Chem.MolToSmiles(
-            standard_mol, kekuleSmiles=False, canonical=True, isomericSmiles=isomeric
-        )
-        return standard_smi
+        return standard_mol
 
 
 class InchiHandling(MoleculeHandler):
