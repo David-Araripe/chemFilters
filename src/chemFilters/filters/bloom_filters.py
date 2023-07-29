@@ -97,8 +97,7 @@ class MolbloomFilters(MoleculeHandler):
                 smiles = p.map(self._output_smi, stdin)
 
         all_params = list(product(smiles, self._catalogs))
-        with Pool(1) as p:
-            results = p.starmap(self.buy_smi, all_params)
+        results = [self.buy_smi(smi, cat) for smi, cat in all_params]
 
         num_catalogs = len(self._catalogs)
         df = pd.DataFrame(
