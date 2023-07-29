@@ -76,7 +76,11 @@ class RdkitFilters(MoleculeHandler):
             )
         return filter_names, descriptions, substructs
 
-    def get_flagging_df(self, mols: List[Union[Chem.Mol, str]]) -> pd.DataFrame:
+    def get_flagging_df(
+        self,
+        mols: List[Union[Chem.Mol, str]],
+        save_matches: bool = False,
+    ) -> pd.DataFrame:
         """Flag molecules using the defined RDKit FilterCatalogs and return a dataframe
         with all the detedcted filters as columns and the molecules as rows. Items
         within the dataframe will be the description of the molecular filter that was
@@ -85,6 +89,8 @@ class RdkitFilters(MoleculeHandler):
 
         Args:
             mols: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
+            save_matches: if True, will save the filter names, descriptions, and
+                substructures as attributes. Defaults to False.
 
         Returns:
             pd.DataFrame: dataframe with columns as filter types and rows as molecules.
@@ -130,7 +136,8 @@ class RdkitFilters(MoleculeHandler):
                 f"Failed to get filter names and descriptions for {len(error_idx)} "
                 f"molecules in indexes: {error_idx}. SMILES will be set to NaN."
             )
-        self.filter_names = filter_names
-        self.descriptions = descriptions
-        self.substructs = substructs
+        if save_matches:
+            self.filter_names = filter_names
+            self.descriptions = descriptions
+            self.substructs = substructs
         return final_df.replace({"": np.nan})
