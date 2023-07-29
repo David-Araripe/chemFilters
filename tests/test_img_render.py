@@ -39,12 +39,12 @@ class TestMolPlotter(unittest.TestCase):
         self.assertIsInstance(self.plotter.available_fonts, dict)
         self.assertTrue(len(self.plotter.available_fonts) > 0)
 
-    def test_stdin_to_mols(self):
+    def test_stdin_to_mol(self):
         mol_list = [
             Chem.MolFromSmiles("CC(=O)OC1=CC=CC=C1C(=O)O"),
             Chem.MolFromSmiles("CC(=O)OC1=CC=CC=C1C(=O)O"),
         ]
-        result = self.plotter._stdin_to_mols(mol_list)
+        result = list(map(self.plotter._stdin_to_mol, mol_list))
         self.assertEqual(len(result), 2)
         self.assertIsInstance(result[0], Chem.rdchem.Mol)
 
