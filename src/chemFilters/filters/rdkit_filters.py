@@ -11,8 +11,27 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
-from ..chem.interface import MoleculeHandler, mol_to_smi
+from ..chem.interface import MoleculeHandler
 from .utils import get_catalog_match
+
+STANDARD_RD_COLS = [
+    "NIH",
+    "PAINS_A",
+    "PAINS_B",
+    "PAINS_C",
+    "PAINS_any",
+    "ZINC",
+    "Brenk",
+    "ChEMBL23_Dundee",
+    "ChEMBL23_BMS",
+    "ChEMBL23_MLSMR",
+    "ChEMBL23_Inpharmatica",
+    "ChEMBL23_SureChEMBL",
+    "ChEMBL23_LINT",
+    "ChEMBL23_Glaxo",
+    "ChEMBL23_any",
+]
+FILTER_COLLECTIONS = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of filters
 
 
 class RdkitFilters(MoleculeHandler):
@@ -35,50 +54,50 @@ class RdkitFilters(MoleculeHandler):
         allFilt = FilterCatalogParams.FilterCatalogs.ALL
         return [m for m in dir(allFilt) if any([m.isupper(), m.startswith("CHEMBL_")])]
 
-    @property
-    def _filter_params(self):
-        """The updated RDKit FilterCatalogParams object used for filtering."""
-        catalog = FilterCatalogParams()
-        catalog.AddCatalog(self.filter)
-        return FilterCatalog(catalog)
-
     def _get_filter(self):
         """Get the filter from RDKit FilterCatalogs."""
         if self.filter_type not in self.available_filters:
             raise ValueError(f"Filter type {self.filter_type} not available.")
-        return getattr(FilterCatalogParams.FilterCatalogs, self.filter_type)
+        _filter = getattr(FilterCatalogParams.FilterCatalogs, self.filter_type)
+        catalog = FilterCatalogParams()
+        catalog.AddCatalog(_filter)
+        return FilterCatalog(catalog)
 
     def filter_mols(
-        self, mols: List[Union[Chem.Mol, str]]
+        self,
+        stdin: List[Union[Chem.Mol, str]],
+        match_type: str = "string",
     ) -> Tuple[List[List[str]], List[List[str]], List[List[Chem.Mol]]]:
         """Filter molecules using RDKit FilterCatalogs.
 
         Args:
-            mols: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
+            stdin: list of RDKit Mol objects of SMILES strings if self._from_smi is True
+            match_type: values within the flagging dataframe. If `bool`, will spare
+                retrieving substructures and descriptions. If `string`, will have the
+                description of the filter that was matched. Defaults to `string`.
 
         Returns:
             filter_names: list of filter names that were matched.
             descriptions: list of filter descriptions that were matched.
             substructs: list of substructures that were matched.
         """
-        if "__iter__" not in dir(mols):
-            mols = [mols]
         with Pool(self.n_jobs) as p:
-            filter_names, descriptions, substructs = zip(
-                *p.map(
-                    partial(
-                        get_catalog_match,
-                        catalog=self._filter_params,
-                        from_smi=self._from_smi,
-                    ),
-                    mols,
-                )
+            mols = p.map(self._output_mol, stdin)
+            result = p.map(
+                partial(
+                    get_catalog_match,
+                    catalog=self.filter,
+                    match_type=match_type,
+                ),
+                mols,
             )
+        filter_names, descriptions, substructs = zip(*result)
         return filter_names, descriptions, substructs
 
     def get_flagging_df(
         self,
-        mols: List[Union[Chem.Mol, str]],
+        stdin: List[Union[Chem.Mol, str]],
+        match_type: str = "string",
         save_matches: bool = False,
     ) -> pd.DataFrame:
         """Flag molecules using the defined RDKit FilterCatalogs and return a dataframe
@@ -88,49 +107,55 @@ class RdkitFilters(MoleculeHandler):
         attributes.
 
         Args:
-            mols: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
+            stdin: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
+            match_type: values within the flagging dataframe. If `bool`, will spare
+                retrieving substructures and descriptions. If `string`, will have the
+                description of the filter that was matched. Defaults to `string`.
             save_matches: if True, will save the filter names, descriptions, and
                 substructures as attributes. Defaults to False.
 
         Returns:
             pd.DataFrame: dataframe with columns as filter types and rows as molecules.
         """
-        if self.filter_type != "ALL":
-            logging.warn(
-                f"Filter type {self.filter_type} is not 'ALL'. "
-                "Some filters may not be applied."
-            )
-        filter_names, descriptions, substructs = self.filter_mols(mols)
-        nope = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of filters
-        columns = [
-            c
-            for c in self.available_filters
-            if c not in nope and not c.startswith("CHEMBL_")
-        ]
-        df = pd.DataFrame(
-            list(zip(filter_names, descriptions)),
-            columns=["Names", "Descriptions"],
+        if match_type.lower() not in ["string", "bool"]:
+            raise ValueError("match_type must be either 'string' or 'bool'.")
+
+        def flatten_labels(labels):
+            """Flatten the labels and filter out any None types"""
+            return ";".join(filter(None, labels))
+
+        vectorized_flatten = np.vectorize(flatten_labels)
+        filter_names, descriptions, substructs = self.filter_mols(
+            stdin, match_type=match_type
         )
-        error_idx = []
-        final_df = pd.DataFrame(columns=columns)
-        for idx, row in df.iterrows():
-            try:
-                label_dict = dict(zip(row["Names"], row["Descriptions"]))
-            except TypeError:
-                label_dict = {}
-                error_idx.append(idx)
-            final_df = pd.concat(
-                [final_df, pd.DataFrame(label_dict, index=[0])], ignore_index=True
+        if match_type.lower() == "string":
+            val_dicts = [
+                dict(zip(names, descs))
+                if all([names is not None, descs is not None])
+                else {}
+                for names, descs in zip(filter_names, descriptions)
+            ]
+            final_df = pd.DataFrame(val_dicts)
+            final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
+            final_df = (
+                final_df.apply(vectorized_flatten)
+                .replace({"": np.nan})
+                .reindex(columns=STANDARD_RD_COLS)
             )
-        final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
-        for col in final_df.columns:
-            final_df[col] = final_df[col].apply(lambda x: ";".join(x))
-        if self._from_smi:
-            final_df.insert(0, "SMILES", mols)
-        else:
-            with Pool(self.n_jobs) as p:
-                final_df.insert(0, "SMILES", p.map(mol_to_smi, mols))
-        if error_idx != []:
+        elif match_type.lower() == "bool":
+            final_df = pd.DataFrame(columns=STANDARD_RD_COLS, index=range(len(stdin)))
+            for col in STANDARD_RD_COLS:
+                names_series = pd.Series(
+                    [names if names is not None else [] for names in filter_names]
+                )
+                final_df[col] = names_series.apply(lambda x, col: col in x, col=col)
+        # Add smiles to the final dataframe
+        with Pool(self.n_jobs) as p:
+            smiles = p.map(self._output_smi, stdin)
+        final_df.insert(0, "SMILES", smiles)
+        # if there are any errors, set the smiles to NaN
+        error_idx = [i for i, x in enumerate(filter_names) if x is None]
+        if error_idx:
             final_df.loc[error_idx, "SMILES"] = np.nan
             logging.warn(
                 f"Failed to get filter names and descriptions for {len(error_idx)} "
@@ -140,4 +165,4 @@ class RdkitFilters(MoleculeHandler):
             self.filter_names = filter_names
             self.descriptions = descriptions
             self.substructs = substructs
-        return final_df.replace({"": np.nan})
+        return final_df

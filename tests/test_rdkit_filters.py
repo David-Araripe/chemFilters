@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pandas as pd
 from rdkit import Chem
-from rdkit.Chem.FilterCatalog import FilterCatalogParams
 
 from chemFilters import RdkitFilters
 
@@ -30,7 +29,7 @@ class TestRdkitFilters(unittest.TestCase):
             except ValueError:
                 self.fail(f"Filter type {_filter} not available.")
             self.assertIsInstance(newFilter, RdkitFilters)
-            self.assertIsInstance(result, FilterCatalogParams.FilterCatalogs)
+            self.assertIsInstance(result, Chem.rdfiltercatalog.FilterCatalog)
 
     def test_filter_mols(self):
         mols = [Chem.MolFromSmiles(smi) for smi in self.test_smiles]
@@ -57,9 +56,15 @@ class TestRdkitFilters(unittest.TestCase):
         pd.testing.assert_frame_equal(result_df, self.expected_filtered_df)
 
     def test_unvalid_smiles(self):
-        mock_smiles = ["hihihi", "hohoho"]
+        mock_smiles = ["CC(=O)Oc1ccccc1C(=O)O", "hihihi", "hohoho"]
         result_df = self.filterFunc_from_smi.get_flagging_df(mock_smiles)
-        self.assertTrue(result_df["SMILES"].isnull().all())
+        bool_result_df = self.filterFunc_from_smi.get_flagging_df(
+            mock_smiles, match_type="bool"
+        )
+        self.assertTrue(isinstance(result_df.loc[0, "SMILES"], str))
+        self.assertTrue(result_df.loc[[1, 2], "SMILES"].isnull().all())
+        self.assertTrue(isinstance(bool_result_df.loc[0, "SMILES"], str))
+        self.assertTrue(bool_result_df.loc[[1, 2], "SMILES"].isnull().all())
 
     def tearDown(self) -> None:
         return super().tearDown()

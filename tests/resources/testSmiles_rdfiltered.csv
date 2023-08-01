@@ -1,7 +1,7 @@
-SMILES,NIH,PAINS_A,PAINS_B,PAINS_C,ZINC,Brenk,ChEMBL23_Dundee,ChEMBL23_BMS,ChEMBL23_MLSMR,ChEMBL23_Inpharmatica,ChEMBL23_SureChEMBL,ChEMBL23_LINT
-CCC1=[O+][Cu-3]2([O+]=C(CC)C1)[O+]=C(CC)CC(CC)=[O+]2,oxonium,,,,,charged_oxygen_or_sulfur_atoms,charged oxygen or sulfur atoms,oxonium,Ketone,Filter9_metal,,
-C(=Cc1ccccc1)C1=[O+][Cu-3]2([O+]=C(C=Cc3ccccc3)CC(c3ccccc3)=[O+]2)[O+]=C(c2ccccc2)C1,oxonium,,,,,Michael_acceptor_1,Michael acceptor,oxonium,vinyl michael acceptor1,Filter44_michael_acceptor2,phenylethene,alpha beta-unsaturated ketones; center of Michael reactivity
-CC(=O)N1c2ccccc2Sc2c1ccc1ccccc21,,,,,,,,,,,,
-Nc1ccc(C=Cc2ccc(N)cc2S(=O)(=O)O)c(S(=O)(=O)O)c1,gte_2_sulfonic_acid,,,,,Sulfonic_acid_2,Sulfonic acid,gte_2_sulfonic_acid,Dye 25,,phenylethene,S/PO3 groups
-O=S(=O)(O)CCS(=O)(=O)O,gte_2_sulfonic_acid,,,,,Sulfonic_acid_2,Sulfonic acid,gte_2_sulfonic_acid,Sulfonic acid,,sulphates,S/PO3 groups
-CCOP(=O)(Nc1cccc(Cl)c1)OCC,phosphorous_nitrogen_bond,,,,,phosphor,phosphor,phosphorous_nitrogen_bond,Phosphoric ester,,,S/PO3 groups
+SMILES,NIH,PAINS_A,PAINS_B,PAINS_C,PAINS_any,ZINC,Brenk,ChEMBL23_Dundee,ChEMBL23_BMS,ChEMBL23_MLSMR,ChEMBL23_Inpharmatica,ChEMBL23_SureChEMBL,ChEMBL23_LINT,ChEMBL23_Glaxo,ChEMBL23_any
+CCC1=[O+][Cu-3]2([O+]=C(CC)C1)[O+]=C(CC)CC(CC)=[O+]2,oxonium,,,,,,charged_oxygen_or_sulfur_atoms,charged oxygen or sulfur atoms,oxonium,Ketone,Filter9_metal,,,,
+C(=Cc1ccccc1)C1=[O+][Cu-3]2([O+]=C(C=Cc3ccccc3)CC(c3ccccc3)=[O+]2)[O+]=C(c2ccccc2)C1,oxonium,,,,,,Michael_acceptor_1,Michael acceptor,oxonium,vinyl michael acceptor1,Filter44_michael_acceptor2,phenylethene,alpha beta-unsaturated ketones; center of Michael reactivity,,
+CC(=O)N1c2ccccc2Sc2c1ccc1ccccc21,,,,,,,,,,,,,,,
+Nc1ccc(C=Cc2ccc(N)cc2S(=O)(=O)O)c(S(=O)(=O)O)c1,gte_2_sulfonic_acid,,,,,,Sulfonic_acid_2,Sulfonic acid,gte_2_sulfonic_acid,Dye 25,,phenylethene,S/PO3 groups,,
+O=S(=O)(O)CCS(=O)(=O)O,gte_2_sulfonic_acid,,,,,,Sulfonic_acid_2,Sulfonic acid,gte_2_sulfonic_acid,Sulfonic acid,,sulphates,S/PO3 groups,,
+CCOP(=O)(Nc1cccc(Cl)c1)OCC,phosphorous_nitrogen_bond,,,,,,phosphor,phosphor,phosphorous_nitrogen_bond,Phosphoric ester,,,S/PO3 groups,,
