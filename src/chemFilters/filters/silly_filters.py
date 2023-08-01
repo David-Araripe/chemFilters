@@ -13,6 +13,12 @@ from chemFilters.chem.standardizers import ChemStandardizer
 
 from ..chem.interface import MoleculeHandler, mol_from_smi
 
+STANDARD_SILLY_COLS = [
+    "chembl",
+    "excape",
+    "papyrus",
+]
+
 
 class SillyMolSpotterFilter(MoleculeHandler):
     """Wrapper class to molspotter, a tool based on Pat Water's silly walks filter.

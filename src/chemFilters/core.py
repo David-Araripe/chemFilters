@@ -12,47 +12,13 @@ from chemFilters import (
     RdkitFilters,
     SillyMolSpotterFilter,
 )
-from chemFilters.chem.interface import mol_from_smi
-from chemFilters.chem.standardizers import ChemStandardizer
 
-STANDARD_RD_COLS = [
-    "NIH",
-    "PAINS_A",
-    "PAINS_B",
-    "PAINS_C",
-    "PAINS_any",
-    "ZINC",
-    "Brenk",
-    "ChEMBL23_Dundee",
-    "ChEMBL23_BMS",
-    "ChEMBL23_MLSMR",
-    "ChEMBL23_Inpharmatica",
-    "ChEMBL23_SureChEMBL",
-    "ChEMBL23_LINT",
-    "ChEMBL23_Glaxo",
-    "ChEMBL23_any",
-]
-
-STANDARD_PEP_COLS = [
-    "NaturalLAminoAcids",
-    "NaturalLDAminoAcids",
-    "NaturalAminoAcidDerivatives",
-    "NonNaturalAminoAcidDerivatives",
-    "AllAmineAndAcid",
-]
-
-STANDARD_BLOOM_COLS = [
-    "zinc20",
-    "zinc-instock",
-    "zinc-instock-mini",
-    "surechembl",
-]
-
-STANDARD_SILLY_COLS = [
-    "chembl",
-    "excape",
-    "papyrus",
-]
+from .chem.interface import mol_from_smi
+from .chem.standardizers import ChemStandardizer
+from .filters.bloom_filters import STANDARD_BLOOM_COLS
+from .filters.pep_filters import STANDARD_PEP_COLS
+from .filters.rdkit_filters import STANDARD_RD_COLS
+from .filters.silly_filters import STANDARD_SILLY_COLS
 
 
 class CoreFilter:
@@ -80,6 +46,8 @@ class CoreFilter:
         pep_filter: bool = True,
         silly_filter: bool = True,
         bloom_filter: bool = True,
+        rdfilter_subset: str = "ALL",
+        rdfilter_output: str = "string",
         std_mols: bool = True,
         std_method: str = "chembl",
         n_jobs=1,
@@ -92,11 +60,18 @@ class CoreFilter:
             pep_filter: toggle applying peptide filters to smiles. Defaults to True.
             silly_filter: toggle applying silly filters to smiles. Defaults to True.
             bloom_filter: toggle applying bloom filters to smiles. Defaults to True.
+            rdfilter_subset: subset of the rdkit filters to be applied. For the
+                available filters, see `RdkitFilters.available_filters`.
+                Defaults to "ALL".
+            rdfilter_output: output format of the rdkit filters. Available: 'bool' and
+                'string'. Defaults to "string".
             std_mols: whether to standardize the mols. Defaults to True.
             std_method: standardization method to be used. Defaults to "chembl".
             n_jobs: number of jobs to run in parallel. Defaults to 1.
         """
         self.toggle_rdkit_filter = rdkit_filter
+        self.rdfilter_subset = rdfilter_subset
+        self.rdfilter_output = rdfilter_output
         self.toggle_pep_filter = pep_filter
         self.toggle_silly_filter = silly_filter
         self.toggle_bloom_filter = bloom_filter
@@ -109,7 +84,7 @@ class CoreFilter:
         for more flexibility in the future."""
         if self.toggle_rdkit_filter:
             self.rdFilter = RdkitFilters(
-                filter_type="ALL", from_smi=False, n_jobs=n_jobs
+                filter_type=self.rdfilter_subset, from_smi=False, n_jobs=n_jobs
             )
         if self.toggle_pep_filter:
             self.pepFilter = PeptideFilters(from_smi=False)
@@ -166,23 +141,28 @@ class CoreFilter:
     def _rdfilterMols(self, mols: List[Chem.Mol]):
         """Filter with self.rdFilter."""
 
-        def aggregate_str_vals(df, cols):
+        def aggregate_str_vals(df, cols, match_type="string"):
             """function to aggregate strings within the columns into the same row. It
             takes into account nan values by replacing with empty strings, joining with
-            `; `, and replacing the resulting `; ` * ncols - 1 with nan."""
+            `; `, and replacing the resulting `; ` * ncols - 1 with nan.
+
+            If match_type is 'bool', it will return a boolean series with True if any"""
             n_cols = len(cols)
-            null_str = "; " * (
-                n_cols - 1
-            )  # after join with ';', this is the null string
-            aggr_series = (
-                df.loc[:, cols]
-                .fillna("")
-                .apply(lambda x: "; ".join(x), axis=1)
-                .replace({null_str: np.nan})
-            )
+            if match_type == "bool":
+                aggr_series = df.loc[:, cols].apply(lambda x: np.any(x), axis=1)
+            else:
+                null_str = "; " * (
+                    n_cols - 1
+                )  # after join with ';', this is the null string
+                aggr_series = (
+                    df.loc[:, cols]
+                    .fillna("")
+                    .apply(lambda x: "; ".join(x), axis=1)
+                    .replace({null_str: np.nan})
+                )
             return aggr_series
 
-        rdfilt_df = self.rdFilter.get_flagging_df(mols)
+        rdfilt_df = self.rdFilter.get_flagging_df(mols, match_type=self.rdfilter_output)
         pains_cols = [col for col in rdfilt_df.columns if "PAINS" in col]
         chembl_cols = [col for col in rdfilt_df.columns if "ChEMBL" in col]
         any_pains = aggregate_str_vals(rdfilt_df, pains_cols)

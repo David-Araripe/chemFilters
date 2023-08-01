@@ -107,7 +107,7 @@ class RdkitFilters(MoleculeHandler):
         attributes.
 
         Args:
-            stdin: list of RDKit Mol objects or SMILES strings if self._from_smi is True.
+            stdin: list of RDKit Mol objects or SMILES strings if self._from_smi is True
             match_type: values within the flagging dataframe. If `bool`, will spare
                 retrieving substructures and descriptions. If `string`, will have the
                 description of the filter that was matched. Defaults to `string`.

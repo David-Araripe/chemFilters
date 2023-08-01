@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
 
+import pandas as pd
+
 from chemFilters.core import CoreFilter
 
 
@@ -16,6 +18,17 @@ def main():
         type=str,
         required=True,
         help="Path to the input file containing SMILES strings.",
+    )
+    parser.add_argument(
+        "-c",
+        "--col-name",
+        type=str,
+        required=False,
+        default=None,
+        help=(
+            "column name for the csv file containing SMILES strings. "
+            "If not provided, will treat input as a txt file with SMILES only"
+        ),
     )
     parser.add_argument(
         "-o",
@@ -126,9 +139,14 @@ def main():
     input_path = Path(args.input)
     if not input_path.exists():
         raise FileNotFoundError(f"Input file {input_path} does not exist.")
-    with input_path.open() as f:
-        smiles = [line.strip() for line in f]
-    result = core_filter(smiles, chunksize=args.chunk_size)
+
+    if args.col_name is None:
+        with input_path.open() as f:
+            smiles = [line.strip() for line in f]
+        result = core_filter(smiles, chunksize=args.chunk_size)
+    else:
+        smiles = pd.read_csv(input_path, usecols=[args.col_name]).values
+        result = core_filter(smiles, chunksize=args.chunk_size)
     result.to_csv(args.output, index=False)
 
 

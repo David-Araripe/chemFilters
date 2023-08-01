@@ -10,6 +10,14 @@ from rdkit import Chem
 
 from ..chem.interface import MoleculeHandler
 
+STANDARD_PEP_COLS = [
+    "NaturalLAminoAcids",
+    "NaturalLDAminoAcids",
+    "NaturalAminoAcidDerivatives",
+    "NonNaturalAminoAcidDerivatives",
+    "AllAmineAndAcid",
+]
+
 
 class PeptideFilters(MoleculeHandler):
     """Wrapper class for PepSift, a tool for identifying peptides and their derivatives

@@ -13,6 +13,13 @@ from rdkit import Chem
 from ..chem.interface import MoleculeHandler
 from ..chem.standardizers import ChemStandardizer
 
+STANDARD_BLOOM_COLS = [
+    "zinc20",
+    "zinc-instock",
+    "zinc-instock-mini",
+    "surechembl",
+]
+
 
 class MolbloomFilters(MoleculeHandler):
     """Wrapper class for molbloom. Requires molbloom to be installed.
