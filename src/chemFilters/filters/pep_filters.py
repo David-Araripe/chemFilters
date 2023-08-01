@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 from itertools import product
 from multiprocessing import Pool
 from typing import List, Union
@@ -98,7 +99,15 @@ class PeptideFilters(MoleculeHandler):
         if sift_obj is None:
             assert isinstance(self.filter, PepSift), "self.filter must be a PepSift obj"
             sift_obj = self.filter
-        return sift_obj.is_peptide(mol)
+        try:
+            return sift_obj.is_peptide(mol)
+        except Exception as e:
+            logging.log(
+                logging.ERROR,
+                "PepSift.is_peptide() error "
+                f"- returning np.nan: {e} for stdin {stdin}",
+            )
+            return None
 
     def filter_mols(self, stdin: List[Chem.Mol]):
         """Filter molecules using the designated pepsift filter. If `sift_level=None`
