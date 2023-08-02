@@ -104,8 +104,8 @@ class PeptideFilters(MoleculeHandler):
         except Exception as e:
             logging.log(
                 logging.ERROR,
-                "PepSift.is_peptide() error "
-                f"- returning np.nan: {e} for stdin {stdin}",
+                "PepSift.is_peptide() error - returning np.nan for sift level "
+                f"{sift_obj.level}. Message:\n {e} for stdin {stdin}",
             )
             return None
 
