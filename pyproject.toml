@@ -48,6 +48,9 @@ dev = [
   "tables"
 ]
 
+[project.scripts]
+chemfilters = "chemFilters.cli:main"
+
 [project.urls]
 homepage = "https://github.com/David-Araripe/chemFilters"
 repository = "https://github.com/David-Araripe/chemFilters"

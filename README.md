@@ -29,6 +29,8 @@ See available filters and visualization methods below:
     - [Purchasability filters](#purchasability-filters)
     - [Silly molecules filters](#silly-molecules-filters)
     - [Peptide filters](#peptide-filters)
+    - [Core filters](#core-filters)
+    - [CLI](#cli)
   - [Visualization](#visualization)
     - [Rendering a grid of molecules;](#rendering-a-grid-of-molecules)
     - [Rendering substructure matches:](#rendering-substructure-matches)
@@ -49,8 +51,8 @@ from rdkit import Chem
 
 mols = [
     Chem.MolFromSmiles("CCC1=[O+][Cu-3]2([O+]=C(CC)C1)[O+]=C(CC)CC(CC)=[O+]2"),
-    Chem.MolFromSmiles('CC1=C2C(=COC(C)C2C)C(O)=C(C(=O)O)C1=O'),
-    Chem.MolFromSmiles('CCOP(=O)(Nc1cccc(Cl)c1)OCC'),
+    Chem.MolFromSmiles("CC1=C2C(=COC(C)C2C)C(O)=C(C(=O)O)C1=O"),
+    Chem.MolFromSmiles("CCOP(=O)(Nc1cccc(Cl)c1)OCC"),
     Chem.MolFromSmiles("Nc1ccc(C=Cc2ccc(N)cc2S(=O)(=O)O)c(S(=O)(=O)O)c1"),
 ]
 
@@ -77,9 +79,41 @@ silly_filter.get_scoring_df(mols)
 ### Peptide filters
 
 ``` Python
+from chemFilters import PeptideFilters
 pep_filter = PeptideFilters(from_smi=False)
 pep_filter.get_flagging_df(mols)
 ```
+
+### Core filters
+
+The package also has an implementation that allows applying all available filters at once. This implementation is also used in the CLI version of the package. For further configuration options, check the CLI help.
+
+``` Python
+from chemFilters.core import CoreFilters
+
+smiles = [
+    "CCC1=[O+][Cu-3]2([O+]=C(CC)C1)[O+]=C(CC)CC(CC)=[O+]2",
+    "CC1=C2C(=COC(C)C2C)C(O)=C(C(=O)O)C1=O",
+    "CCOP(=O)(Nc1cccc(Cl)c1)OCC",
+    "Nc1ccc(C=Cc2ccc(N)cc2S(=O)(=O)O)c(S(=O)(=O)O)c1",
+]
+
+core_filter = CoreFilters()
+filtered_df = core_filter(smiles)
+```
+
+### CLI
+
+After installing the package, the CLI can be used to filter datasets. The CLI has the following options:
+
+``` bash
+usage: chemFilters [-h] -i INPUT [-c COL_NAME] -o OUTPUT [--rdkit-filter] [--no-rdkit-filter]
+                   [--rdkit-subset RDKIT_SUBSET] [--rdkit-valtype RDKIT_VALTYPE] [--pep-filter] [--no-pep-filter]
+                   [--silly-filter] [--no-silly-filter] [--bloom-filter] [--no-bloom-filter] [--std-mols]
+                   [--no-std-mols] [--std-method STD_METHOD] [--n-jobs N_JOBS] [--chunk-size CHUNK_SIZE]
+```
+
+Where `--<name>-filter` and `--no-<name>-filter` enables and disables the implemented filters. Same goes for the parameter `--std-mols`, that enables the molecular standardization according to `--std-method`.
 
 ## Visualization
 
