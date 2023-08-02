@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from chemFilters.core import CoreFilter
+from chemFilters.filters.rdkit_filters import FILTER_COLLECTIONS
 
 
 def main():
@@ -50,6 +51,25 @@ def main():
         help="Disable RDKit filters.",
     )
     parser.add_argument(
+        "--rdkit-subset",
+        type=str,
+        default="ALL",
+        help=(
+            "Subset of the RDKit filters to apply. Example subsets are "
+            f"{FILTER_COLLECTIONS}. Defaults to 'ALL'."
+        ),
+    )
+    parser.add_argument(
+        "--rdkit-valtype",
+        type=str,
+        default="string",
+        help=(
+            "If 'string', will return the description of the match. "
+            "If 'bool', will return booleans on whether it matched. "
+            " Defaults to `string`."
+        ),
+    )
+    parser.add_argument(
         "--pep-filter",
         dest="pep_filter",
         action="store_true",
@@ -89,7 +109,7 @@ def main():
         "--std-mols",
         dest="std_mols",
         action="store_true",
-        help="Standardize the mols. Disabled by default.",
+        help="Standardize the mols. Enabled by default.",
     )
     parser.add_argument(
         "--no-std-mols",
@@ -115,8 +135,8 @@ def main():
         default=-1,
         help=(
             "Number of smiles to be processed in chunks. If negative, will process "
-            "all smiles at once. If the memory is not enough, reduce this number."
-            "Defaults to -1.",
+            "all smiles at once. If the memory is not enough, reduce this number. "
+            "Defaults to -1."
         ),
     )
     parser.set_defaults(
@@ -132,6 +152,8 @@ def main():
         pep_filter=args.pep_filter,
         silly_filter=args.silly_filter,
         bloom_filter=args.bloom_filter,
+        rdfilter_subset=args.rdkit_subset,
+        rdfilter_output=args.rdkit_valtype,
         std_mols=args.std_mols,
         std_method=args.std_method,
         n_jobs=args.n_jobs,

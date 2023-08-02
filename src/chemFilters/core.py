@@ -13,7 +13,7 @@ from chemFilters import (
     SillyMolSpotterFilter,
 )
 
-from .chem.interface import mol_from_smi
+from .chem.interface import mol_from_smi, mol_to_smi
 from .chem.standardizers import ChemStandardizer
 from .filters.bloom_filters import STANDARD_BLOOM_COLS
 from .filters.pep_filters import STANDARD_PEP_COLS
@@ -35,6 +35,11 @@ class CoreFilter:
         pep_filter: toggle applying peptide filters to smiles. Defaults to True.
         silly_filter: toggle applying silly filters to smiles. Defaults to True.
         bloom_filter: toggle applying bloom filters to smiles. Defaults to True.
+        rdfilter_subset: subset of the rdkit filters to be applied. For the
+            available filters, see `RdkitFilters.available_filters`.
+            Defaults to "ALL".
+        rdfilter_output: output format of the rdkit filters. Available: 'bool' and
+            'string'. Defaults to "string".
         std_mols: whether to standardize the mols. Defaults to False.
         std_method: standardization method to be used. Defaults to "chembl".
         n_jobs: number of jobs to run in parallel. Defaults to 1.
@@ -118,6 +123,8 @@ class CoreFilter:
                 mols = p.map(mol_from_smi, chunk)
             if self.std_mols:
                 mols = self.molStandardizer(mols)
+            with Pool(self.n_jobs) as p:
+                smiles = p.map(mol_to_smi, mols)
 
             filtered_dfs = list()
             if self.toggle_rdkit_filter:
@@ -129,13 +136,12 @@ class CoreFilter:
             if self.toggle_silly_filter:
                 filtered_dfs.append(self._sillyfilterMols(mols))
             if len(filtered_dfs) > 1:
-                filtered_dfs = [filtered_dfs[0]] + [
-                    df.drop(columns="SMILES") for df in filtered_dfs[1:]
-                ]
+                filtered_dfs = [df.drop(columns="SMILES") for df in filtered_dfs]
             concat_df = pd.concat(
                 filtered_dfs,
                 axis=1,
             )
+            concat_df.insert(0, "SMILES", smiles)
             yield concat_df
 
     def _rdfilterMols(self, mols: List[Chem.Mol]):
@@ -173,14 +179,15 @@ class CoreFilter:
 
     def _pepfilterMols(self, mols: List[Chem.Mol]):
         """Filter with self.pepFilter."""
+        rename_dict = {name: "SIFT_{}".format(name) for name in STANDARD_PEP_COLS}
         pepfilt_df = self.pepFilter.get_flagging_df(mols)
         return pepfilt_df.assign(
-            AminoAcid_any=lambda x: x[STANDARD_PEP_COLS].any(axis=1)
-        )
+            SIFT_any=lambda x: x[STANDARD_PEP_COLS].any(axis=1)
+        ).rename(columns=rename_dict)
 
     def _bloomfilterMols(self, mols: List[Chem.Mol]):
         """Filter with self.bloomFilter."""
-        rename_dict = {"BLOOM_{}".format(name): name for name in STANDARD_BLOOM_COLS}
+        rename_dict = {name: "BLOOM_{}".format(name) for name in STANDARD_BLOOM_COLS}
         return (
             self.bloomFilter.get_flagging_df(mols)
             .assign(BLOOM_any=lambda x: x[STANDARD_BLOOM_COLS].any(axis=1))
@@ -189,7 +196,7 @@ class CoreFilter:
 
     def _sillyfilterMols(self, mols: List[Chem.Mol]):
         """Filter with self.sillyFilter."""
-        rename_dict = {"SILLY_{}".format(name): name for name in STANDARD_SILLY_COLS}
+        rename_dict = {name: "SILLY_{}".format(name) for name in STANDARD_SILLY_COLS}
         return self.sillyFilter.get_scoring_df(mols).rename(columns=rename_dict)
 
     def filter_smiles(self, smiles: list, chunksize: int = 1000):
