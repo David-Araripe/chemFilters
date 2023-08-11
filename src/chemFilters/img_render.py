@@ -216,17 +216,17 @@ class MolPlotter(MoleculeHandler):
         # Writing the labels to each of the images
         for img, text in zip(images, labels):
             # Getting the size of the text to center the loation of the text
-            font_width, font_height = font.getsize(text)
+            left, top, right, bottom = font.getbbox(text)
             adjusted_fontsize = self._font_size
-            if font_width > img_width:
+            if right > img_width:
                 # TODO: improve this so we can instead separate the text in two lines
                 while True:
                     adjusted_fontsize -= 1
                     adjusted_font = ImageFont.truetype(
                         str(font_path), adjusted_fontsize
                     )
-                    font_width, font_height = font.getsize(text)
-                    if font_width < img_width:
+                    left, top, right, bottom = font.getbbox(text)
+                    if right < img_width:
                         break
             else:
                 font = ImageFont.truetype(str(font_path), self._font_size)
@@ -234,11 +234,11 @@ class MolPlotter(MoleculeHandler):
             if self._label_loc not in ["top", "bottom"]:
                 raise ValueError("label_loc must be either 'top' or 'bottom'.")
             if self._label_loc == "top":
-                centered_w = (img_width - font_width) / 2
-                centered_h = (img_height - font_height) / 99
+                centered_w = (img_width - right) / 2
+                centered_h = (img_height - top) / 99
             elif self._label_loc == "bottom":
-                centered_w = (img_width - font_width) / 2
-                centered_h = (img_height - font_height) / 99 * 97
+                centered_w = (img_width - right) / 2
+                centered_h = (img_height - top) / 99 * 97
             draw = ImageDraw.Draw(img)
             if adjusted_fontsize != self._font_size:
                 draw.text(
