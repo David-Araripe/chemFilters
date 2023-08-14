@@ -67,8 +67,7 @@ profile = "black"
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
-required-version = '23.1.0'
+target-version = ['py39']
 exclude = '''
 (
     asv_bench/env
