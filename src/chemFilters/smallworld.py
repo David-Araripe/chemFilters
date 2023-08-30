@@ -3,13 +3,14 @@
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from importlib.util import find_spec
+from pathlib import Path
 from typing import List
 
 import pandas as pd
 import pkg_resources
 from smallworld_api import SmallWorld
 
-from .chem.standardizers import InchiHandling, SmilesStandardizer
+from .chem.standardizers import ChemStandardizer, InchiHandling
 
 
 class SmilesSearcher:
@@ -39,6 +40,12 @@ class SmilesSearcher:
         self.standardize_smiles = standardize_smiles
         self.n_threads = n_threads
         self.n_jobs = n_jobs
+        self.inchi_calculator = InchiHandling(
+            "inchikey", n_jobs=self.n_jobs, from_smi=True, verbose=False
+        )
+        self.standardizer = ChemStandardizer(
+            n_jobs=self.n_jobs, from_smi=True, verbose=False
+        )
 
     @property
     def smallWorldParameters(self):
@@ -58,7 +65,7 @@ class SmilesSearcher:
     @property
     def _myPreferredParams(self) -> dict:
         return {
-            "dist": 3,  # I want molecules that are fairly similar to the query
+            "dist": 5,  # I want molecules that are fairly similar to the query
             "db": self.sw.REAL_dataset,
             "length": 20,  # I want to get 20 results
         }
@@ -79,12 +86,8 @@ class SmilesSearcher:
             final_df: pd.DataFrame with the results of the search.
         """
         if self.standardize_smiles:
-            print("Standardizing SMILES...")
-            standardizer = SmilesStandardizer(n_jobs=self.n_jobs)
-            smiles_list = standardizer(smiles_list)
-            print("Calculating InchiKeys...")
-            inchi_calculator = InchiHandling("inchikey", n_jobs=self.n_jobs)
-            inchikeys = inchi_calculator(smiles_list)
+            smiles_list = self.standardizer(smiles_list)
+            inchikeys = self.inchi_calculator(smiles_list)
             idx_mapping = {k: idx for idx, k in enumerate(inchikeys)}
 
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
@@ -99,8 +102,8 @@ class SmilesSearcher:
         final_df = pd.concat(results, ignore_index=True)
         if self.standardize_smiles:
             final_df = final_df.assign(
-                qrySmiles_std=lambda x: standardizer(x["qrySmiles"]),
-                qryInchiKey_std=lambda x: inchi_calculator(x["qrySmiles_std"]),
+                qrySmiles_std=lambda x: self.standardizer(x["qrySmiles"]),
+                qryInchiKey_std=lambda x: self.inchi_calculator(x["qrySmiles_std"]),
                 submission_idx=lambda x: x["qryInchiKey_std"].map(idx_mapping),
             ).sort_values("submission_idx")
         return final_df
@@ -127,12 +130,8 @@ class SmilesSearcher:
                 "To install it, run: \npython -m pip install tables"
             )
         if self.standardize_smiles:
-            print("Standardizing SMILES...")
-            standardizer = SmilesStandardizer(n_jobs=self.n_jobs)
-            smiles_list = standardizer(smiles_list)
-            print("Calculating InchiKeys...")
-            inchi_calculator = InchiHandling("inchikey", n_jobs=self.n_jobs)
-            inchikeys = inchi_calculator(smiles_list)
+            smiles_list = self.standardizer(smiles_list)
+            inchikeys = self.inchi_calculator(smiles_list)
             idx_mapping = {k: idx for idx, k in enumerate(inchikeys)}
 
         with ThreadPoolExecutor(max_workers=self.n_threads) as executor:
@@ -143,14 +142,28 @@ class SmilesSearcher:
             results = []
             for future in as_completed(futures):
                 result = future.result()
-                # append results to the output file
-                result.to_hdf(output_file, "results", append=True)
+                if len(result) > 0:
+                    result = result.assign(
+                        atomMap=lambda x: x["atomMap"].astype(str),
+                        atomScore=lambda x: x["atomScore"].astype(str),
+                        anonIdx=lambda x: x["anonIdx"].astype(str),
+                    )
+                    if not Path(output_file).exists():  # In this case, keep the header
+                        result.to_csv(output_file, mode="a", index=False)
+                    else:
+                        result.to_csv(output_file, mode="a", index=False, header=False)
+                    results.append(result)
+                else:
+                    continue
 
-        final_df = pd.concat(results, ignore_index=True)
-        if self.standardize_smiles:
-            final_df = final_df.assign(
-                qrySmiles_std=lambda x: standardizer(x["qrySmiles"]),
-                qryInchiKey_std=lambda x: inchi_calculator(x["qrySmiles_std"]),
-                submission_idx=lambda x: x["qryInchiKey_std"].map(idx_mapping),
-            ).sort_values("submission_idx")
-        return final_df
+        if results != []:
+            final_df = pd.concat(results, ignore_index=True)
+            if self.standardize_smiles:
+                final_df = final_df.assign(
+                    qrySmiles_std=lambda x: self.standardizer(x["qrySmiles"]),
+                    qryInchiKey_std=lambda x: self.inchi_calculator(x["qrySmiles_std"]),
+                    submission_idx=lambda x: x["qryInchiKey_std"].map(idx_mapping),
+                ).sort_values("submission_idx")
+            return final_df
+        else:
+            return
