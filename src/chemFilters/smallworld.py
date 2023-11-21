@@ -118,17 +118,10 @@ class SmilesSearcher:
         Args:
             smiles_list: list of SMILES to search in Small World.
             output_file: path to the output file where the results will be written.
-                Note: this method requires the optional dependency pytables, as .csv
-                doesn't directly support lazy writing.
 
         Returns:
             final_df: pd.DataFrame with the results of the search.
         """
-        if not find_spec("tables"):
-            raise ImportError(
-                "Lazy writing requires the optional dependency pytables."
-                "To install it, run: \npython -m pip install tables"
-            )
         if self.standardize_smiles:
             smiles_list = self.standardizer(smiles_list)
             inchikeys = self.inchi_calculator(smiles_list)

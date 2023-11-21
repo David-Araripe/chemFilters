@@ -36,7 +36,7 @@ dependencies = [
 full = [
   "smallworld-api",
   "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
-  "tables",
+  "molvs",
 ]
 dev = [
   "tox",
@@ -45,7 +45,7 @@ dev = [
   "black",
   "smallworld-api",
   "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
-  "tables"
+  "molvs",
 ]
 
 [project.scripts]
