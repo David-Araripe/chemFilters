@@ -2,7 +2,6 @@
 """Contains classes for finding custom fonts & rendering molecules into figures."""
 
 import importlib
-import logging
 import os
 import re
 import sys
@@ -16,6 +15,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import PIL
+from loguru import logger
 from matplotlib import cm
 from PIL import Image, ImageDraw, ImageFont
 from rdkit import Chem
@@ -335,10 +335,10 @@ class MolPlotter(MoleculeHandler):
             else:
                 mol = Chem.MolFromSmiles(match_struct)
                 if mol is None:
-                    logging.warning(
+                    logger.warning(
                         'Error: "match_struct" from SMILES RDKit Mol is invalid.'
                     )
-                    logging.warning('Trying "match_struct" from SMARTS...')
+                    logger.warning('Trying "match_struct" from SMARTS...')
                     mol = Chem.MolFromSmarts(match_struct)
                     if mol is None:
                         raise ValueError(

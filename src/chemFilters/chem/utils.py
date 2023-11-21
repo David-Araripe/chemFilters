@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used by the chemFilters.chem subpackage."""
 
+from loguru import logger
 from rdkit import Chem, RDLogger
 from rdkit.Chem import inchi
 
@@ -21,19 +22,28 @@ def RDKitVerbosityOFF():
 
 def molToConnectivity(mol: Chem.Mol):
     """Converts a SMILES string to a connectivity string."""
-    connectivity = Chem.MolToInchiKey(mol).split("-")[0]
+    try:
+        connectivity = Chem.MolToInchiKey(mol).split("-")[0]
+    except TypeError as e:
+        logger.error(f"Could not convert mol to connectivity. Message:\n {e}")
     return connectivity
 
 
 def molToInchiKey(mol: Chem.Mol):
     """Converts a SMILES string to an InChI string."""
-    connectivity = Chem.MolToInchiKey(mol)
-    return connectivity
+    try:
+        inchi_key = Chem.MolToInchiKey(mol)
+    except TypeError as e:
+        logger.error(f"Could not convert mol to inchikey. Message:\n {e}")
+    return inchi_key
 
 
 def molToInchi(mol: Chem.Mol):
     """Converts a SMILES string to an InChI string."""
-    inchi_str = inchi.MolToInchi(mol)
+    try:
+        inchi_str = inchi.MolToInchi(mol)
+    except TypeError as e:
+        logger.error(f"Could not convert mol to inchi. Message:\n {e}")
     return inchi_str
 
 

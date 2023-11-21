@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """Utility modules with functions for the chemFilters.chem subpackage."""
-import logging
 from functools import partial
 from importlib.util import find_spec
 from multiprocessing import Pool
 from typing import List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
+from loguru import logger
 from molvs import Standardizer
 from rdkit import Chem
 from tqdm import tqdm
@@ -144,7 +144,7 @@ class ChemStandardizer(MoleculeHandler):
         try:
             standard_mol = papyrus_std.standardize(mol, **kwargs)
         except RuntimeError:
-            logging.exception("Error standardizing molecule: ", stdin)
+            logger.exception("Error standardizing molecule: ", stdin)
             standard_mol = None
         return standard_mol
 
@@ -166,9 +166,9 @@ class ChemStandardizer(MoleculeHandler):
             return None
         try:
             standard_mol = chembl_std.standardize_mol(mol, sanitize=True, **kwargs)
-        except Exception as e:
-            logging.exception("Error standardizing molecule: ", stdin)
-            logging.exception(e)
+        except TypeError as e:
+            logger.exception("Error standardizing molecule: ", stdin)
+            logger.exception(e)
             standard_mol = None
         return standard_mol
 
@@ -198,7 +198,7 @@ class ChemStandardizer(MoleculeHandler):
             tautomer_mol = molvs_std.canonicalize_tautomer(mol)
             standard_mol = molvs_std.standardize(tautomer_mol)
         except RuntimeError:
-            logging.exception("Error standardizing molecule: ", stdin)
+            logger.exception("Error standardizing molecule: ", stdin)
             standard_mol = None
         return standard_mol
 

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import logging
 from itertools import product
 from multiprocessing import Pool
 from typing import List, Union
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from pepsift import PepSift, SiftLevel
 from rdkit import Chem
 
@@ -102,8 +102,7 @@ class PeptideFilters(MoleculeHandler):
         try:
             return sift_obj.is_peptide(mol)
         except Exception as e:
-            logging.log(
-                logging.ERROR,
+            logger.error(
                 "PepSift.is_peptide() error - returning np.nan for sift level "
                 f"{sift_obj.level}. Message:\n {e} for stdin {stdin}",
             )

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """A module for filtering molecules using RDKit FilterCatalogs."""
 
-import logging
 from functools import partial
 from multiprocessing import Pool
 from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from loguru import logger
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
@@ -157,7 +157,7 @@ class RdkitFilters(MoleculeHandler):
         error_idx = [i for i, x in enumerate(filter_names) if x is None]
         if error_idx:
             final_df.loc[error_idx, "SMILES"] = np.nan
-            logging.warn(
+            logger.warn(
                 f"Failed to get filter names and descriptions for {len(error_idx)} "
                 f"molecules in indexes: {error_idx}. SMILES will be set to NaN."
             )

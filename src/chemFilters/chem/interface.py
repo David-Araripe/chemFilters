@@ -1,6 +1,6 @@
-import logging
 from typing import Union
 
+from loguru import logger
 from rdkit import Chem
 
 
@@ -10,7 +10,7 @@ def mol_from_smi(smi: str):
         return None
     mol = Chem.MolFromSmiles(smi)
     if mol is None:
-        logging.warn(f"Could not convert SMILES {smi} to rdkit.Chem.Mol")
+        logger.warn(f"Could not convert SMILES {smi} to rdkit.Chem.Mol")
     return mol
 
 
@@ -18,8 +18,8 @@ def mol_to_smi(mol, **kwargs):
     """Convert a rdkit.Chem.Mol object to a SMILES string."""
     try:
         smi = Chem.MolToSmiles(mol, **kwargs)
-    except Exception as e:
-        logging.warn(f"Exception!! {e}\n" f"Could not convert {mol} to SMILES.")
+    except TypeError as e:
+        logger.warn(f"Exception!! {e}\n" f"Could not convert {mol} to SMILES.")
         smi = None
     return smi
 
