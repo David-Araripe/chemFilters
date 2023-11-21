@@ -26,6 +26,7 @@ def molToConnectivity(mol: Chem.Mol):
         connectivity = Chem.MolToInchiKey(mol).split("-")[0]
     except TypeError as e:
         logger.error(f"Could not convert mol to connectivity. Message:\n {e}")
+        connectivity = None
     return connectivity
 
 
@@ -35,6 +36,7 @@ def molToInchiKey(mol: Chem.Mol):
         inchi_key = Chem.MolToInchiKey(mol)
     except TypeError as e:
         logger.error(f"Could not convert mol to inchikey. Message:\n {e}")
+        inchi_key = None
     return inchi_key
 
 
@@ -44,6 +46,7 @@ def molToInchi(mol: Chem.Mol):
         inchi_str = inchi.MolToInchi(mol)
     except TypeError as e:
         logger.error(f"Could not convert mol to inchi. Message:\n {e}")
+        inchi_str = None
     return inchi_str
 
 
