@@ -12,6 +12,7 @@ class TestChemStandardizer(unittest.TestCase):
         self.aspirin = "CC(=O)Oc1ccccc1C(=O)O"
         self.chembl_smi_standardizer = ChemStandardizer(method="chembl", from_smi=True)
         self.chembl_mol_standardizer = ChemStandardizer(method="chembl", from_smi=False)
+        self.molvs_smi_standardizer = ChemStandardizer(method="molvs", from_smi=True)
         self.papyrus_smi_standardizer = ChemStandardizer(
             method="papyrus", from_smi=True, small_molecule_min_mw=150
         )
@@ -49,6 +50,17 @@ class TestChemStandardizer(unittest.TestCase):
     def test_papyrus_standardizer(self):
         result = self.papyrus_smi_standardizer([self.aspirin])
         self.assertEqual(result, [self.aspirin])
+
+    def test_molvs_standardizer(self):
+        mols = [Chem.MolFromSmiles(smi) for smi in self.test_smiles]
+        std_smiles = self.molvs_smi_standardizer(self.test_smiles)
+        for smi in std_smiles:
+            self.assertIsInstance(smi, str)
+        std_smiles = self.chembl_mol_standardizer(mols)
+        for smi in std_smiles:
+            self.assertIsInstance(smi, str)
+        with self.assertRaises(ValueError):
+            self.chembl_mol_standardizer(self.test_smiles)
 
     def tearDown(self):
         pass

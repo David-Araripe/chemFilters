@@ -7,6 +7,7 @@ from multiprocessing import Pool
 from typing import List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
+from molvs import Standardizer
 from rdkit import Chem
 from tqdm import tqdm
 
@@ -73,6 +74,14 @@ class ChemStandardizer(MoleculeHandler):
                     "python -m pip install "
                     "git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git"
                 )
+        elif method.lower() == "molvs":
+            if find_spec("molvs"):
+                self.standardizer = partial(self.molvsStandardizer, **kwargs)
+            else:
+                raise ImportError(
+                    "Optional dependency not found. Please install it by running:\n"
+                    "python -m pip install molvs"
+                )
         else:
             raise ValueError(f"Invalid SMILES standardizing method: {method}")
         super().__init__(from_smi)
@@ -125,7 +134,7 @@ class ChemStandardizer(MoleculeHandler):
         Args:
             stdin: standard input; single SMILES strings or single rdkit.Chem.Mol object
                 depending on the value of self._from_smi.
-            isomeric: output isomerc smiles. Defaults to True.
+            isomeric: output isomeric smiles. Defaults to True.
             kwargs: aditional keyword arguments to pass to the standardizer.
 
         Returns:
@@ -160,6 +169,36 @@ class ChemStandardizer(MoleculeHandler):
         except Exception as e:
             logging.exception("Error standardizing molecule: ", stdin)
             logging.exception(e)
+            standard_mol = None
+        return standard_mol
+
+    def molvsStandardizer(
+        self,
+        stdin: Union[str, Chem.Mol],
+        **kwargs,
+    ) -> str:
+        """Uses molvs to standardize a SMILES string. By default, this standardization
+        pipeline applies the functions `canonicalize_tautomer` and `standardize`
+        implemented in the package.
+
+        For more information, see the docs: https://molvs.readthedocs.io/en/latest/
+
+        Args:
+            stdin: standard input; single SMILES strings or single rdkit.Chem.Mol object
+                depending on the value of self._from_smi.
+            isomeric: output isomeric smiles. Defaults to True.
+            kwargs: aditional `molvs.Standardizer` object.
+
+        Returns:
+            standardized smiles string
+        """
+        mol = self._output_mol(stdin)
+        molvs_std = Standardizer(**kwargs)
+        try:
+            tautomer_mol = molvs_std.canonicalize_tautomer(mol)
+            standard_mol = molvs_std.standardize(tautomer_mol)
+        except RuntimeError:
+            logging.exception("Error standardizing molecule: ", stdin)
             standard_mol = None
         return standard_mol
 
