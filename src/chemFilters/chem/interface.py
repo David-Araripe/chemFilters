@@ -10,7 +10,7 @@ def mol_from_smi(smi: str):
         return None
     mol = Chem.MolFromSmiles(smi)
     if mol is None:
-        logger.warn(f"Could not convert SMILES {smi} to rdkit.Chem.Mol")
+        logger.warning(f"Could not convert SMILES {smi} to rdkit.Chem.Mol")
     return mol
 
 
@@ -19,7 +19,7 @@ def mol_to_smi(mol, **kwargs):
     try:
         smi = Chem.MolToSmiles(mol, **kwargs)
     except TypeError as e:
-        logger.warn(f"Exception!! {e}\n" f"Could not convert {mol} to SMILES.")
+        logger.warning(f"Exception!! {e}\n" f"Could not convert {mol} to SMILES.")
         smi = None
     return smi
 

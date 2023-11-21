@@ -157,7 +157,7 @@ class RdkitFilters(MoleculeHandler):
         error_idx = [i for i, x in enumerate(filter_names) if x is None]
         if error_idx:
             final_df.loc[error_idx, "SMILES"] = np.nan
-            logger.warn(
+            logger.warning(
                 f"Failed to get filter names and descriptions for {len(error_idx)} "
                 f"molecules in indexes: {error_idx}. SMILES will be set to NaN."
             )
