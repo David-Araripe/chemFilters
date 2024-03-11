@@ -7,7 +7,6 @@ from typing import List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
 from loguru import logger
-from molvs import Standardizer
 from rdkit import Chem
 from tqdm import tqdm
 
@@ -23,6 +22,9 @@ from .utils import (
 
 if find_spec("papyrus_structure_pipeline"):
     from papyrus_structure_pipeline import standardizer as papyrus_std
+
+if find_spec("molvs"):
+    from molvs import Standardizer
 
 
 class ChemStandardizer(MoleculeHandler):
@@ -148,7 +150,9 @@ class ChemStandardizer(MoleculeHandler):
             standard_mol = None
         return standard_mol
 
-    def chemblStandardizer(self, stdin: Union[str, Chem.Mol], **kwargs) -> str:
+    def chemblStandardizer(
+        self, stdin: Union[str, Chem.Mol], neutralize: bool = True, **kwargs
+    ) -> str:
         """Uses the ChEMBL standardizer to standardize a SMILES string. Accepts extra
         keyword arguments that will be passed to the standardizer
 
@@ -156,7 +160,10 @@ class ChemStandardizer(MoleculeHandler):
             stdin: standard input; single SMILES strings or single rdkit.Chem.Mol object
                 depending on the value of self._from_smi.
             isomeric: output isomeric smiles. Defaults to True.
-            kwargs: additional keyword arguments to pass to the standardizer.
+            neutralize: configure `get_parent_mol` to neutralize the molecule. Defaults
+                to True.
+            kwargs: keyword arguments to pass to the `get_parent_mol` and the
+                `standardize_mol` functions.
 
         Returns:
             standardized smiles string
@@ -165,7 +172,19 @@ class ChemStandardizer(MoleculeHandler):
         if mol is None:
             return None
         try:
-            standard_mol = chembl_std.standardize_mol(mol, sanitize=True, **kwargs)
+            parent_mol = chembl_std.get_parent_mol(
+                mol,
+                neutralize=neutralize,
+                **{
+                    "check_exclusion": kwargs.get("check_exclusion", True),
+                    "verbose": kwargs.get("verbose", False),
+                },
+            )[0]
+            standard_mol = chembl_std.standardize_mol(
+                parent_mol,
+                sanitize=True,
+                **{"check_exclusion": kwargs.get("check_exclusion", True)},
+            )
         except TypeError as e:
             logger.exception("Error standardizing molecule: ", stdin)
             logger.exception(e)
