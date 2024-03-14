@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Contains classes for finding custom fonts & rendering molecules into figures."""
 
-import importlib
 import os
 import re
 import sys
@@ -11,22 +10,21 @@ from multiprocessing import Pool
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+import matplotlib.font_manager as fm
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import PIL
 from loguru import logger
 from matplotlib import cm
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 from rdkit import Chem
-from rdkit.Chem import AllChem
-from rdkit.Chem.Draw import rdMolDraw2D
+from rdkit.Chem import AllChem, Draw
 
 from .chem.interface import MoleculeHandler
 
 
 class FontManager:
-    def __init__(self, wsl: Union[bool, str] = "auto", include_plt: bool = True):
+    def __init__(self, wsl: Union[bool, str] = "auto"):
         """Initialize the FontManager class. It will search for fonts in the system and
         in matplotlib.
 
@@ -35,7 +33,6 @@ class FontManager:
                 installed in windows. Defaults to "auto".
             include_plt: Includes fonts available in matplotlib. Defaults to True.
         """
-        self.include_plt = include_plt
         self.wsl = wsl
         self.fonts = None
         pass
@@ -107,9 +104,6 @@ class FontManager:
                     font_paths = sorted(list(_dir.glob(f"*{font_extensions}")))
                     font_dict.update({_path.stem: _path for _path in font_paths})
 
-        if self.include_plt:
-            import matplotlib.font_manager as fm
-
             font_dict.update({font.name: font.fname for font in fm.fontManager.ttflist})
         return font_dict
 
@@ -126,7 +120,6 @@ class MolPlotter(MoleculeHandler):
         font_name: font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
         font_size: size of the font patched to the image. Defaults to 15.
-        label_loc: font placement; either `top` or `bottom`. Defaults to "bottom".
         n_jobs: number of jobs to run in parallel. Defaults to 1.
     """
 
@@ -137,25 +130,18 @@ class MolPlotter(MoleculeHandler):
         cmap: str = "rainbow",
         font_name: str = "DejaVu Sans",
         font_size: int = 15,
-        label_loc="bottom",
         n_jobs: int = 1,
     ) -> None:
         self._cmap = cmap
         self._size = size
         self._font_size = font_size
         self._font_name = font_name
-        self._label_loc = label_loc
         self._n_jobs = n_jobs
         super().__init__(from_smi)
 
     @property
     def available_fonts(self):
-        try:
-            importlib.import_module("matplotlib")
-            include_plt = True
-        except ModuleNotFoundError:
-            include_plt = False
-        fm = FontManager(include_plt=include_plt)
+        fm = FontManager()
         return fm.available_fonts
 
     @staticmethod
@@ -166,87 +152,53 @@ class MolPlotter(MoleculeHandler):
             log_a = np.log(arr)
         return np.exp(np.average(log_a, axis=axis))
 
+    def get_d2d(
+        self,
+        bondLineWidth: float = 2.0,
+        addAtomIndices: bool = False,
+        addBondIndices: bool = False,
+        explicitMethyl: bool = False,
+        unspecifiedStereoIsUnknown: bool = False,
+        bw: bool = False,
+    ) -> Draw.MolDraw2DCairo:
+        """Function to get the rdkit's MolDraw2DCairo object with the desired options.
+
+        Args:
+            bondLineWidth: width of the bonds in the drawing. RDKit defaults to 2.0.
+            addAtomIndices: add the atom indices to the rendered mol. Defaults to False.
+            addBondIndices: add the bond indices to the rendered mol. Defaults to False.
+            explicitMethyl: explicitly displays a methil as CH3. Defaults to False.
+            unspecifiedStereoIsUnknown: unspecified stereo atoms/bonds are drawn as if
+                they were unknown. Defaults to False.
+            bw: render the molecule as black and white. Defaults to False.
+
+        Returns:
+            Draw.MolDraw2DCairo object with the desired options.
+        """
+        d2d = Draw.MolDraw2DCairo(*self._size)
+        dopts = d2d.drawOptions()
+        dopts.fixedFontSize = self._font_size
+        dopts.bondLineWidth = bondLineWidth
+        if addAtomIndices:
+            dopts.noAtomLabels = True
+        if addBondIndices:
+            dopts.addBondIndices = True
+        if explicitMethyl:
+            dopts.explicitMethyl = True
+        if unspecifiedStereoIsUnknown:
+            dopts.unspecifiedStereoIsUnknown = True
+        if bw:
+            dopts.useBWAtomPalette()
+        font_path = self.available_fonts.get(self._font_name, "BuiltinRobotoRegular")
+        logger.debug(f"Using font: {font_path}")
+        dopts.fontFile = font_path
+        return d2d
+
     def _stdin_to_mol(self, stdin):
         if self._from_smi:
             return self._output_mol(stdin)
         else:
             return stdin
-
-    def _add_mol_label(
-        self,
-        images: List[PIL.Image.Image],
-        labels: List[str],
-    ) -> Image:
-        """Function to add legends to a list of images. The legends are added using PIL
-        and placed according to the `label_loc` parameter.
-
-        Args:
-            images: list of PIL images.
-            labels: list of labels to be added to the images.
-            font_name: name of the font to be used. Depend on being found by the
-                FontManager class. Defaults to "DejaVu Sans".
-            font_size: size of the font. Defaults to 15.
-            label_loc: position of the label. Defaults to "bottom".
-
-        Raises:
-            ValueError: if the font or the label_loc are not available
-
-        Returns:
-            list of the images with the labels added.
-        """
-        try:
-            importlib.import_module("matplotlib")
-            include_plt = True
-        except ModuleNotFoundError:
-            include_plt = False
-        fm = FontManager(include_plt=include_plt)
-
-        if self._font_name is None:
-            font = ImageFont.load_default()
-        elif self._font_name not in fm.available_fonts.keys():
-            raise ValueError(
-                "Font not available. Try one of the following: \n"
-                f"{fm.available_fonts.keys()}"
-            )
-        else:
-            font_path = fm.available_fonts[self._font_name]
-            font = ImageFont.truetype(str(font_path), self._font_size)
-
-        img_width, img_height = images[0].size
-        # Writing the labels to each of the images
-        for img, text in zip(images, labels):
-            # Getting the size of the text to center the loation of the text
-            left, top, right, bottom = font.getbbox(text)
-            adjusted_fontsize = self._font_size
-            if right > img_width:
-                # TODO: improve this so we can instead separate the text in two lines
-                while True:
-                    adjusted_fontsize -= 1
-                    adjusted_font = ImageFont.truetype(
-                        str(font_path), adjusted_fontsize
-                    )
-                    left, top, right, bottom = font.getbbox(text)
-                    if right < img_width:
-                        break
-            else:
-                font = ImageFont.truetype(str(font_path), self._font_size)
-
-            if self._label_loc not in ["top", "bottom"]:
-                raise ValueError("label_loc must be either 'top' or 'bottom'.")
-            if self._label_loc == "top":
-                centered_w = (img_width - right) / 2
-                centered_h = (img_height - top) / 99
-            elif self._label_loc == "bottom":
-                centered_w = (img_width - right) / 2
-                centered_h = (img_height - top) / 99 * 97
-            draw = ImageDraw.Draw(img)
-            if adjusted_fontsize != self._font_size:
-                draw.text(
-                    (centered_w, centered_h), text, fill="black", font=adjusted_font
-                )
-            else:
-                draw.text((centered_w, centered_h), text, fill="black", font=font)
-        return images
 
     def _substructure_palette(
         self, n_substruct: int, cmap: str, alpha: float = 1.0
@@ -274,7 +226,7 @@ class MolPlotter(MoleculeHandler):
             colors = scalar_mappable.to_rgba(range(n_substruct), alpha=alpha).tolist()
         return colors
 
-    def _images_to_grid(self, images: List[Image.Image], n_cols: int) -> Image:
+    def _images_to_grid(self, images: List[Image.Image], n_cols: int) -> Image.Image:
         """Helper function to organize a list of images into a single image, as a grid.
 
         Args:
@@ -312,49 +264,93 @@ class MolPlotter(MoleculeHandler):
         final_img = Image.fromarray(final_img)
         return final_img
 
+    def render_ACS1996(
+        self, mol: Chem.Mol, label: str = "", return_svg=False, **kwargs
+    ) -> Union[Image.Image, str]:
+        """Render molecules using the ACS 1996 style. This is a mode which is designed
+        to produce images compatible with the drawing standards for American Chemical
+        Society (ACS) journals.
+
+        Args:
+            mol: rdkit mol object.
+            label: the label to be added to the molecule. Defaults to "".
+            return_svg: whether to return an svg image instead. Defaults to False.
+            kwargs: additional keyword arguments to be passed to the DrawMolecule method
+
+        Returns:
+            a PIL.Image.Image object or a string with the SVG representation in case
+                return_svg is True.
+        """
+        d2d = self.get_d2d()
+        Draw.SetACS1996Mode(d2d.drawOptions(), Draw.MeanBondLength(mol))
+        d2d.DrawMolecule(mol, legend=label, **kwargs)
+        d2d.FinishDrawing()
+        if not return_svg:
+            img = Image.open(BytesIO(d2d.GetDrawingText()))
+        else:
+            img = d2d.GetDrawingText()
+        return img
+
     def render_mol(
         self,
         mol: Chem.Mol,
-        label: Optional[str] = None,
-        match_struct: Optional[Union[str, Chem.Mol]] = None,
+        label: str = None,
+        match_pose: Optional[Union[str, Chem.Mol]] = None,
+        d2d: Draw.MolDraw2DCairo = None,
+        return_svg: bool = False,
         **kwargs,
-    ) -> Image:
+    ) -> Union[Image.Image, str]:
         """Plot molecules using rdMolDraw2D.MolDraw2DCairo. Keyword arguments provided
         will be passed into DrawMolecule method of the same class.
 
         Args:
             mol: rdkit mol object.
+            label: the label to be added to the molecule. Defaults to None.
+            match_pose: if desired, input a SMILES, a SMARTS or a rdkit mol object to
+                render `mol` into a matching position. Defaults to None.
+            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
+                Defaults to None.
+            return_svg: if you'd like to return an svg image instead. Defaults to False.
+            kwargs: additional keyword arguments to be passed to the DrawMolecule method
+
+        Raises:
+            ValueError: _description_
 
         Returns:
-            a PIL.Image.Image object.
+            a PIL.Image.Image object or a string with the SVG representation in case
+                return_svg is True.
         """
+        if label is None:
+            label = ""
         mol = self._stdin_to_mol(mol)
-        if match_struct is not None:
-            if isinstance(match_struct, Chem.rdchem.Mol):
-                AllChem.Compute2DCoords(match_struct)
+        if match_pose is not None:
+            if isinstance(match_pose, Chem.rdchem.Mol):
+                AllChem.Compute2DCoords(match_pose)
             else:
-                mol = Chem.MolFromSmiles(match_struct)
-                if mol is None:
+                ref_mol = Chem.MolFromSmiles(match_pose)
+                if ref_mol is None:
                     logger.warning(
-                        'Error: "match_struct" from SMILES RDKit Mol is invalid.'
+                        'Error: "match_pose" from SMILES RDKit Mol is invalid.'
                     )
-                    logger.warning('Trying "match_struct" from SMARTS...')
-                    mol = Chem.MolFromSmarts(match_struct)
-                    if mol is None:
+                    logger.warning('Trying "match_pose" from SMARTS...')
+                    ref_mol = Chem.MolFromSmarts(match_pose)
+                    if ref_mol is None:
                         raise ValueError(
-                            'Error: "match_struct" invalid from SMILES & SMARTS.'
+                            'Error: "match_pose" invalid from SMILES & SMARTS.'
                         )
-                match_struct = mol
-            AllChem.Compute2DCoords(match_struct)
+                match_pose = ref_mol
+            AllChem.Compute2DCoords(match_pose)
             AllChem.GenerateDepictionMatching2DStructure(
-                mol, match_struct, acceptFailure=True
+                mol, match_pose, acceptFailure=True
             )
-        drawer = rdMolDraw2D.MolDraw2DCairo(*self._size)
-        drawer.DrawMolecule(mol, **kwargs)
-        drawer.FinishDrawing()
-        img = Image.open(BytesIO(drawer.GetDrawingText()))
-        if label is not None:
-            img = self._add_mol_label([img], [label])[0]
+        if d2d is None:
+            d2d = self.get_d2d()
+        d2d.DrawMolecule(mol, legend=label, **kwargs)
+        d2d.FinishDrawing()
+        if not return_svg:
+            img = Image.open(BytesIO(d2d.GetDrawingText()))
+        else:
+            img = d2d.GetDrawingText()
         return img
 
     def render_with_matches(
@@ -362,14 +358,21 @@ class MolPlotter(MoleculeHandler):
         mol: Chem.Mol,
         substructs,
         label: Optional[str] = None,
-        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
-    ) -> Image:
+        match_pose: Optional[Union[str, Chem.Mol]] = None,
+        d2d: Draw.MolDraw2DCairo = None,
+        **kwargs,
+    ) -> Image.Image:
         """Render the substructures on the molecules using default RDKit coloring.
 
         Args:
             mol: molecule to be rendered.
             substructs: substructures output from RDKitFilters.filter_mols.
-            molSize: final image size. Defaults to (500, 500).
+            label: if desired, add a label to the molecule. Defaults to None.
+            match_pose: a common structure between `smiles` used to generate the
+                matching 2D images. If None, 2D rendering won't match. Defaults to None.
+            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
+                Defaults to None.
+            kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
             PIL.Image.Image with the molecule and the highlighted substructures.
@@ -395,7 +398,9 @@ class MolPlotter(MoleculeHandler):
             highlightAtoms=hit_atoms,
             highlightBonds=hit_bonds,
             label=label,
-            match_struct=scaff_pose,
+            match_pose=match_pose,
+            d2d=d2d,
+            **kwargs,
         )
         return img
 
@@ -407,7 +412,9 @@ class MolPlotter(MoleculeHandler):
         label: Optional[str] = None,
         cmap: str = "rainbow",
         alpha: float = 0.5,
-        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
+        match_pose: Optional[Union[str, Chem.Mol]] = None,
+        d2d: Draw.MolDraw2DCairo = None,
+        **kwargs,
     ):
         """Take descriptions and substructures output from RDKitFilters.filter_mols
         and renders them on the molecular structure, coloring the substructures and
@@ -423,9 +430,11 @@ class MolPlotter(MoleculeHandler):
             label: if desired, add a label to the molecule. Defaults to None.
             cmap: colormap for the substructures. Defaults to "viridis".
             alpha: transparency of the colors. Defaults to 0.5.
-            ax: if desired, add the results to an existing axis. Defaults to None.
-            molSize: size of the molecule rendering. Defaults to (500, 500).
-                Note: in the end this will be bound to the size of the plot...
+            match_pose: a common structure between `smiles` used to generate the
+                matching 2D images. If None, 2D rendering won't match. Defaults to None.
+            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
+                Defaults to None.
+            kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
             matplotlib.figure.Figure and Axis with the molecule and the
@@ -456,7 +465,9 @@ class MolPlotter(MoleculeHandler):
             label=label,
             highlightAtoms=color_dict.keys(),
             highlightAtomColors=color_dict,
-            match_struct=scaff_pose,
+            match_pose=match_pose,
+            d2d=d2d,
+            **kwargs,
         )
         return img
 
@@ -480,7 +491,6 @@ class MolPlotter(MoleculeHandler):
             borderaxespad=0,
             frameon=False,
         )
-        # ax.imshow(img)
         ax.set_axis_off()
         if ax is None:
             return fig, ax
@@ -499,7 +509,6 @@ class MolGridPlotter(MolPlotter):
         font_name: font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
         font_size: size of the font patched to the image. Defaults to 15.
-        label_loc: font placement; either `top` or `bottom`. Defaults to "bottom".
         n_jobs: number of jobs to run in parallel. Defaults to 1.
     """
 
@@ -511,31 +520,36 @@ class MolGridPlotter(MolPlotter):
         mols: list,
         labels: Optional[list] = None,
         n_cols: int = None,
-        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
-        bw: bool = False,
-    ) -> PIL.Image.Image:
+        match_pose: Optional[Union[str, Chem.Mol]] = None,
+        d2d: Draw.MolDraw2DCairo = None,
+        **kwargs,
+    ) -> Image.Image:
         """
         Args:
             mols: list of molecules to display.
             labels: list of labels to be written on the mol images. Defaults to None
             n_cols: N columns with molecules. If None, n_cols = len(smiles).
                 Defaults to None.
-            scaff_pose: a common structure between `smiles` used to generate the
+            match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            bw: if True, final image will be converted to gray scale. Defaults to False.
-            label_loc: Location of the label. Defaults to "bottom".
+            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
+                Defaults to None.
+            kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
             PIL.Image.Image
         """
-        with Pool(self._n_jobs) as p:
-            images = p.map(partial(self.render_mol, match_struct=scaff_pose), mols)
         if labels is not None:
-            # Putting the fonts on the images
-            images = self._add_mol_label(images, labels)
+            assert len(labels) == len(mols), "Labels and mols must have the same length"
+            variables = list(zip(mols, labels))
+        else:
+            variables = list(zip(mols))
+        with Pool(self._n_jobs) as p:
+            images = p.starmap(
+                partial(self.render_mol, match_pose=match_pose, d2d=d2d, **kwargs),
+                variables,
+            )
         image = self._images_to_grid(images, n_cols)
-        if bw:
-            image = image.convert("L")
         return image
 
     def mol_structmatch_grid_png(
@@ -544,24 +558,29 @@ class MolGridPlotter(MolPlotter):
         substructs: list,
         labels: Optional[list] = None,
         n_cols: int = None,
-        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
-        bw: bool = False,
-    ) -> PIL.Image.Image:
+        match_pose: Optional[Union[str, Chem.Mol]] = None,
+        d2d: Draw.MolDraw2DCairo = None,
+        **kwargs,
+    ) -> Image.Image:
         """
         Args:
             mols: list of molecules to display.
+            substructs: list of substructures to be highlighted on the mol images.
             labels: list of labels to be written on the mol images. Defaults to None
             n_cols: N columns with molecules. If None, n_cols = len(smiles).
                 Defaults to None.
-            scaff_pose: a common structure between `smiles` used to generate the
+            match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            bw: if True, final image will be converted to gray scale. Defaults to False.
-            label_loc: Location of the label. Defaults to "bottom".
+            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
+                Defaults to None.
+            kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
             PIL.Image.Image
         """
-        partial_function = partial(self.render_with_matches, scaff_pose=scaff_pose)
+        partial_function = partial(
+            self.render_with_matches, match_pose=match_pose, d2d=d2d, **kwargs
+        )
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
             variables = list(zip(mols, substructs, labels))
@@ -569,41 +588,40 @@ class MolGridPlotter(MolPlotter):
             variables = list(zip(mols, substructs))
         with Pool(self._n_jobs) as p:
             images = p.starmap(partial_function, variables)
-        if labels is not None:
-            # Putting the fonts on the images
-            images = self._add_mol_label(images, labels)
         image = self._images_to_grid(images, n_cols)
-        if bw:
-            image = image.convert("L")
         return image
 
     def mol_structmatch_color_grid_png(
         self,
         mols: list,
         descriptions: List[str],
-        substructs: list,
+        substructs: List[Chem.Mol],
         labels: Optional[list] = None,
         n_cols: int = None,
-        scaff_pose: Optional[Union[str, Chem.Mol]] = None,
-        bw: bool = False,
-    ) -> PIL.Image.Image:
+        match_pose: Optional[Union[str, Chem.Mol]] = None,
+        d2d: Draw.MolDraw2DCairo = None,
+        **kwargs,
+    ) -> Image.Image:
         """
         Args:
             mols: list of molecules to display.
+            descriptions: descriptions (`output[0]`) from RDKitFilters.filter_mols
+            substructs: substructures (`output[1]`) from RDKitFilters.filter_mols.
             labels: list of labels to be written on the mol images. Defaults to None
             n_cols: N columns with molecules. If None, n_cols = len(smiles).
                 Defaults to None.
-            scaff_pose: a common structure between `smiles` used to generate the
+            match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            bw: if True, final image will be converted to gray scale. Defaults to False.
-            label_loc: Location of the label. Defaults to "bottom".
+            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
+                Defaults to None.
+            kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
             PIL.Image.Image
         """
         mols = self._stdin_to_mol(mols)
         partial_function = partial(
-            self.render_with_colored_matches, scaff_pose=scaff_pose
+            self.render_with_colored_matches, match_pose=match_pose, d2d=d2d, **kwargs
         )
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
@@ -612,10 +630,5 @@ class MolGridPlotter(MolPlotter):
             variables = list(zip(mols, descriptions, substructs))
         with Pool(self._n_jobs) as p:
             images = p.starmap(partial_function, variables)
-        if labels is not None:
-            # Putting the fonts on the images
-            images = self._add_mol_label(images, labels)
         image = self._images_to_grid(images, n_cols)
-        if bw:
-            image = image.convert("L")
         return image
