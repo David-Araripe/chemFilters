@@ -14,6 +14,7 @@ import matplotlib.font_manager as fm
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+import pkg_resources
 from loguru import logger
 from matplotlib import cm
 from PIL import Image
@@ -104,7 +105,11 @@ class FontManager:
                     font_paths = sorted(list(_dir.glob(f"*{font_extensions}")))
                     font_dict.update({_path.stem: _path for _path in font_paths})
 
-            font_dict.update({font.name: font.fname for font in fm.fontManager.ttflist})
+        # add fonts from matplotlib
+        font_dict.update({font.name: font.fname for font in fm.fontManager.ttflist})
+        # add fonts from rdkit
+        font_dir = Path(pkg_resources.resource_filename("rdkit", "Data/Fonts"))
+        font_dict.update({_path.stem: _path for _path in font_dir.glob("*.ttf")})
         return font_dict
 
 
@@ -113,36 +118,82 @@ class MolPlotter(MoleculeHandler):
     DrawMolecule method to generate the images. The images can be rendered with
     labels and/or substructure matches.
 
-    Args:
+    Attributes:
         from_smi: output images directly from smiles. Defaults to False.
-        size: size of the output images. Defaults to (500, 500).
+        size: size of the output images. Defaults to (300, 300).
         cmap: colormap for `render_with_color` method. Defaults to "rainbow".
         font_name: font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
         font_size: size of the font patched to the image. Defaults to 15.
         n_jobs: number of jobs to run in parallel. Defaults to 1.
+        d2d_params: dictionary with the parameters to be passed to get_d2d method.
+        available_fonts: fonts available in the system and in matplotlib.
     """
 
     def __init__(
         self,
         from_smi: bool = False,
-        size: tuple = (500, 500),
+        size: tuple = (300, 300),
         cmap: str = "rainbow",
-        font_name: str = "DejaVu Sans",
+        font_name: str = "Telex-Regular",
         font_size: int = 15,
         n_jobs: int = 1,
+        bond_line_width: float = 2.0,
+        add_atom_indices: bool = False,
+        add_bond_indices: bool = False,
+        explicit_methyl: bool = False,
+        unspecified_stereo_unknown: bool = False,
+        bw: bool = False,
     ) -> None:
+        """Initialize the MolPlotter class. The class is used to render molecules into
+        either .sdf or .png files. It uses RDKit's DrawMolecule method to generate the
+        images and `self.d2d_params` to set the parameters for the rendering process.
+
+        Args:
+            from_smi: if true, methods will treat inputs as smiles. Defaults to False.
+            size: size of the image to de displayed. Defaults to (300, 300).
+            cmap: colormap for the structure matching. Defaults to "rainbow".
+            font_name: font used on molecules' legends. Defaults to "DejaVu Sans".
+            font_size: size of the font on the legend. Defaults to 15.
+            n_jobs: number of jobs to run in parallel. Defaults to 1.
+            bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
+            add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
+                Defaults to False.
+            add_bond_indices (MolDraw2DCairo): add bond indices to the rendered mols.
+                Defaults to False.
+            explicit_methyl (MolDraw2DCairo): explicitly displays a methil as CH3.
+                Defaults to False.
+            unspecified_stereo_unknown (MolDraw2DCairo): unspecified stereo atoms/bonds
+                are drawn as if they were unknown. Defaults to False.
+            bw: render the molecule as black and white. Defaults to False.
+        """
         self._cmap = cmap
         self._size = size
         self._font_size = font_size
         self._font_name = font_name
         self._n_jobs = n_jobs
+        self.d2d_params = {
+            "bondLineWidth": bond_line_width,
+            "addAtomIndices": add_atom_indices,
+            "addBondIndices": add_bond_indices,
+            "explicitMethyl": explicit_methyl,
+            "unspecifiedStereoIsUnknown": unspecified_stereo_unknown,
+            "bw": bw,
+        }
+        self._check_font(font_name)
         super().__init__(from_smi)
 
     @property
     def available_fonts(self):
         fm = FontManager()
         return fm.available_fonts
+
+    def _check_font(self, font_name):
+        if self._font_name not in self.available_fonts.keys():
+            logger.warning(
+                f"Font {self._font_name} not found. Check `available_fonts` attribute."
+            )
+        return font_name
 
     @staticmethod
     def geometric_mean(arr, axis=0):
@@ -189,9 +240,8 @@ class MolPlotter(MoleculeHandler):
             dopts.unspecifiedStereoIsUnknown = True
         if bw:
             dopts.useBWAtomPalette()
-        font_path = self.available_fonts.get(self._font_name, "BuiltinRobotoRegular")
-        logger.debug(f"Using font: {font_path}")
-        dopts.fontFile = font_path
+        font_path = self.available_fonts.get(self._font_name)
+        dopts.fontFile = str(font_path)
         return d2d
 
     def _stdin_to_mol(self, stdin):
@@ -265,7 +315,12 @@ class MolPlotter(MoleculeHandler):
         return final_img
 
     def render_ACS1996(
-        self, mol: Chem.Mol, label: str = "", return_svg=False, **kwargs
+        self,
+        mol: Chem.Mol,
+        mean_bond_length: float = None,
+        label: str = "",
+        return_svg=False,
+        **kwargs,
     ) -> Union[Image.Image, str]:
         """Render molecules using the ACS 1996 style. This is a mode which is designed
         to produce images compatible with the drawing standards for American Chemical
@@ -273,6 +328,7 @@ class MolPlotter(MoleculeHandler):
 
         Args:
             mol: rdkit mol object.
+            mean_bond_length: the mean bond length of the molecule. Defaults to None.
             label: the label to be added to the molecule. Defaults to "".
             return_svg: whether to return an svg image instead. Defaults to False.
             kwargs: additional keyword arguments to be passed to the DrawMolecule method
@@ -282,7 +338,10 @@ class MolPlotter(MoleculeHandler):
                 return_svg is True.
         """
         d2d = self.get_d2d()
-        Draw.SetACS1996Mode(d2d.drawOptions(), Draw.MeanBondLength(mol))
+        Chem.rdDepictor.Compute2DCoords(mol)
+        if mean_bond_length is None:
+            mean_bond_length = Draw.MeanBondLength(mol)
+        Draw.SetACS1996Mode(d2d.drawOptions(), mean_bond_length)
         d2d.DrawMolecule(mol, legend=label, **kwargs)
         d2d.FinishDrawing()
         if not return_svg:
@@ -296,7 +355,6 @@ class MolPlotter(MoleculeHandler):
         mol: Chem.Mol,
         label: str = None,
         match_pose: Optional[Union[str, Chem.Mol]] = None,
-        d2d: Draw.MolDraw2DCairo = None,
         return_svg: bool = False,
         **kwargs,
     ) -> Union[Image.Image, str]:
@@ -308,8 +366,6 @@ class MolPlotter(MoleculeHandler):
             label: the label to be added to the molecule. Defaults to None.
             match_pose: if desired, input a SMILES, a SMARTS or a rdkit mol object to
                 render `mol` into a matching position. Defaults to None.
-            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
-                Defaults to None.
             return_svg: if you'd like to return an svg image instead. Defaults to False.
             kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
@@ -343,8 +399,7 @@ class MolPlotter(MoleculeHandler):
             AllChem.GenerateDepictionMatching2DStructure(
                 mol, match_pose, acceptFailure=True
             )
-        if d2d is None:
-            d2d = self.get_d2d()
+        d2d = self.get_d2d(**self.d2d_params)
         d2d.DrawMolecule(mol, legend=label, **kwargs)
         d2d.FinishDrawing()
         if not return_svg:
@@ -359,7 +414,6 @@ class MolPlotter(MoleculeHandler):
         substructs,
         label: Optional[str] = None,
         match_pose: Optional[Union[str, Chem.Mol]] = None,
-        d2d: Draw.MolDraw2DCairo = None,
         **kwargs,
     ) -> Image.Image:
         """Render the substructures on the molecules using default RDKit coloring.
@@ -370,8 +424,6 @@ class MolPlotter(MoleculeHandler):
             label: if desired, add a label to the molecule. Defaults to None.
             match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
-                Defaults to None.
             kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
@@ -399,7 +451,6 @@ class MolPlotter(MoleculeHandler):
             highlightBonds=hit_bonds,
             label=label,
             match_pose=match_pose,
-            d2d=d2d,
             **kwargs,
         )
         return img
@@ -413,7 +464,6 @@ class MolPlotter(MoleculeHandler):
         cmap: str = "rainbow",
         alpha: float = 0.5,
         match_pose: Optional[Union[str, Chem.Mol]] = None,
-        d2d: Draw.MolDraw2DCairo = None,
         **kwargs,
     ):
         """Take descriptions and substructures output from RDKitFilters.filter_mols
@@ -432,8 +482,6 @@ class MolPlotter(MoleculeHandler):
             alpha: transparency of the colors. Defaults to 0.5.
             match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
-                Defaults to None.
             kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
@@ -466,7 +514,6 @@ class MolPlotter(MoleculeHandler):
             highlightAtoms=color_dict.keys(),
             highlightAtomColors=color_dict,
             match_pose=match_pose,
-            d2d=d2d,
             **kwargs,
         )
         return img
@@ -502,18 +549,69 @@ class MolGridPlotter(MolPlotter):
     The images can be rendered with labels and/or substructure matches, similar to its
     parent class.
 
-    Args:
+    Attributes:
         from_smi: output images directly from smiles. Defaults to False.
-        size: size of the output images. Defaults to (500, 500).
+        size: size of the output images. Defaults to (300, 300).
         cmap: colormap for `render_with_color` method. Defaults to "rainbow".
         font_name: font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
         font_size: size of the font patched to the image. Defaults to 15.
         n_jobs: number of jobs to run in parallel. Defaults to 1.
+        d2d_params: dictionary with the parameters to be passed to get_d2d method.
+        available_fonts: fonts available in the system and in matplotlib.
     """
 
-    def __init__(self, n_jobs: int = 1, from_smi=False, **kwargs):
-        super().__init__(from_smi=from_smi, n_jobs=n_jobs, **kwargs)
+    def __init__(
+        self,
+        from_smi: bool = False,
+        size: Tuple = (300, 300),
+        cmap: str = "rainbow",
+        font_name: str = "Telex-Regular",
+        font_size: int = 15,
+        n_jobs: int = 1,
+        bond_line_width: float = 2,
+        add_atom_indices: bool = False,
+        add_bond_indices: bool = False,
+        explicit_methyl: bool = False,
+        unspecified_stereo_unknown: bool = False,
+        bw: bool = False,
+    ) -> None:
+        """initialize the MolGridPlotter class. The class is used to render molecules
+        into either .sdf or .png files. It uses RDKit's DrawMolecule method to generate
+        the images and `self.d2d_params` to set the parameters for the rendering process
+
+        Args:
+            from_smi: if true, methods will treat inputs as smiles. Defaults to False.
+            size: size of the image to de displayed. Defaults to (300, 300).
+            cmap: colormap for the structure matching. Defaults to "rainbow".
+            font_name: font used on molecules' legends. Defaults to "DejaVu Sans".
+            font_size: size of the font on the legend. Defaults to 15.
+            n_jobs: number of jobs to run in parallel. Defaults to 1.
+            bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
+            add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
+                Defaults to False.
+            add_bond_indices (MolDraw2DCairo): add bond indices to the rendered mols.
+                Defaults to False.
+            explicit_methyl (MolDraw2DCairo): explicitly displays a methil as CH3.
+                Defaults to False.
+            unspecified_stereo_unknown (MolDraw2DCairo): unspecified stereo atoms/bonds
+                are drawn as if they were unknown. Defaults to False.
+            bw: render the molecule as black and white. Defaults to False.
+        """
+        super().__init__(
+            from_smi,
+            size,
+            cmap,
+            font_name,
+            font_size,
+            n_jobs,
+            bond_line_width,
+            add_atom_indices,
+            add_bond_indices,
+            explicit_methyl,
+            unspecified_stereo_unknown,
+            bw,
+        )
 
     def mol_grid_png(
         self,
@@ -521,7 +619,6 @@ class MolGridPlotter(MolPlotter):
         labels: Optional[list] = None,
         n_cols: int = None,
         match_pose: Optional[Union[str, Chem.Mol]] = None,
-        d2d: Draw.MolDraw2DCairo = None,
         **kwargs,
     ) -> Image.Image:
         """
@@ -532,8 +629,6 @@ class MolGridPlotter(MolPlotter):
                 Defaults to None.
             match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
-                Defaults to None.
             kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
@@ -546,7 +641,7 @@ class MolGridPlotter(MolPlotter):
             variables = list(zip(mols))
         with Pool(self._n_jobs) as p:
             images = p.starmap(
-                partial(self.render_mol, match_pose=match_pose, d2d=d2d, **kwargs),
+                partial(self.render_mol, match_pose=match_pose, **kwargs),
                 variables,
             )
         image = self._images_to_grid(images, n_cols)
@@ -559,7 +654,6 @@ class MolGridPlotter(MolPlotter):
         labels: Optional[list] = None,
         n_cols: int = None,
         match_pose: Optional[Union[str, Chem.Mol]] = None,
-        d2d: Draw.MolDraw2DCairo = None,
         **kwargs,
     ) -> Image.Image:
         """
@@ -571,15 +665,13 @@ class MolGridPlotter(MolPlotter):
                 Defaults to None.
             match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
-                Defaults to None.
             kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
             PIL.Image.Image
         """
         partial_function = partial(
-            self.render_with_matches, match_pose=match_pose, d2d=d2d, **kwargs
+            self.render_with_matches, match_pose=match_pose, **kwargs
         )
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
@@ -599,7 +691,6 @@ class MolGridPlotter(MolPlotter):
         labels: Optional[list] = None,
         n_cols: int = None,
         match_pose: Optional[Union[str, Chem.Mol]] = None,
-        d2d: Draw.MolDraw2DCairo = None,
         **kwargs,
     ) -> Image.Image:
         """
@@ -612,8 +703,6 @@ class MolGridPlotter(MolPlotter):
                 Defaults to None.
             match_pose: a common structure between `smiles` used to generate the
                 matching 2D images. If None, 2D rendering won't match. Defaults to None.
-            d2d: A `Draw.MolDraw2DCairo` object with your preferred configurations.
-                Defaults to None.
             kwargs: additional keyword arguments to be passed to the DrawMolecule method
 
         Returns:
@@ -621,7 +710,7 @@ class MolGridPlotter(MolPlotter):
         """
         mols = self._stdin_to_mol(mols)
         partial_function = partial(
-            self.render_with_colored_matches, match_pose=match_pose, d2d=d2d, **kwargs
+            self.render_with_colored_matches, match_pose=match_pose, **kwargs
         )
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
