@@ -125,24 +125,20 @@ from chemFilters.img_render import MolPlotter, MolGridPlotter
 
 mols = [
     Chem.MolFromSmiles("CCC1=[O+][Cu-3]2([O+]=C(CC)C1)[O+]=C(CC)CC(CC)=[O+]2"),
-    Chem.MolFromSmiles('CC1=C2C(=COC(C)C2C)C(O)=C(C(=O)O)C1=O'),
-    Chem.MolFromSmiles('CCOP(=O)(Nc1cccc(Cl)c1)OCC'),
+    Chem.MolFromSmiles("CC1=C2C(=COC(C)C2C)C(O)=C(C(=O)O)C1=O"),
+    Chem.MolFromSmiles("CCOP(=O)(Nc1cccc(Cl)c1)OCC"),
     Chem.MolFromSmiles("Nc1ccc(C=Cc2ccc(N)cc2S(=O)(=O)O)c(S(=O)(=O)O)c1"),
 ]
 labels = [f"Molecule {i}" for i in range(1, len(mols) + 1)]
 
 # Initialize grid plotter instance
-grid_plotter = MolGridPlotter(
-    from_smi=False,
-    font_size=18,
-    size=(250, 250),
-    font_name="Humor-Sans", # Requires font to be installed
-    label_loc="bottom",
-)
+grid_plotter = MolGridPlotter(from_smi=False, font_name="Telex-Regular")
 
 img = grid_plotter.mol_grid_png(mols[:4], n_cols=2, labels=labels)
 display(img)
 ```
+<!-- img.save("figures/simple_grid.png") -->
+
 <p align="center">
   <img src="./figures/simple_grid.png" alt="drawing" width="450"/>
 </p>
@@ -150,20 +146,18 @@ display(img)
 ### Rendering substructure matches:
 
 ``` Python
-import matplotlib.pyplot as plt
-
 chemFilter = RdkitFilters(filter_type="ALL")
 filter_names, description, substructs = chemFilter.filter_mols(mols)
 
 grid_plotter = MolGridPlotter(
-    n_jobs=1, from_smi=False, font_size=15, size=(250, 250), font_name="Humor-Sans"
+    from_smi=False, font_name="Telex-Regular", size=(250, 250)
 )
-img = grid_plotter.mol_structmatch_grid_png(
-    mols, substructs=substructs, labels=labels, n_cols=2
-)
+
+img = grid_plotter.mol_structmatch_grid_png(mols, substructs=substructs, n_cols=2)
 display(img)
-img.save("substruct_grid.png") # saving the figure
 ```
+<!-- img.save("figures/substruct_grid.png")  # saving the figure -->
+
 <p align="center">
   <img src="./figures/substruct_grid.png" alt="drawing" width="450"/>
 </p>
@@ -178,22 +172,24 @@ chemFilter = RdkitFilters(filter_type="NIH")
 filter_names, description, substructs = chemFilter.filter_mols(mols)
 
 plotter = MolPlotter(
-    from_smi=False, font_size=20, size=(700, 700), font_name="Humor-Sans"
+    from_smi=False, font_size=20, size=(350, 350), font_name="Telex-Regular"
 )
 img = plotter.render_with_colored_matches(
     mols[0],
     descriptions=description[0],
     substructs=substructs[0],
     label=labels[0],
+    alpha=0.3,
 )
 
 plt.imshow(img)
-ax = plt.gca() # get current axis
+ax = plt.gca()  # get current axis
 ax.set_axis_off()
 plotter.colored_matches_legend(description[0], substructs[0], ax=ax)
-fig = plt.gcf() # get current figure
-# saving the figure
-fig.savefig("colored_matches.png", bbox_inches="tight", dpi=150, facecolor="white")
+fig = plt.gcf()  # get current figure
+fig.savefig(  # save matplotlib figure
+    "figures/colored_matches.png", bbox_inches="tight", dpi=150, facecolor="white"
+)
 ```
 <p align="center">
   <img src="./figures/colored_matches.png" alt="drawing" width="450"/>
