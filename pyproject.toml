@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chem-filters"
 dynamic = ["version"]
-description = "A Python package wrapping several chemical structure filtering utilities."
+description = "A Python package wrapping several chemical structure filtering, rendering and standardization utilities."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
@@ -13,30 +13,31 @@ keywords = ["chemical structure", "filtering", "cheminformatics", "pains"]
 authors = [{ name = "David Araripe", email = "david.araripe17@gmail.com" }]
 maintainers = [{ name = "David Araripe", email = "david.araripe17@gmail.com" }]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.9",
+  "Topic :: Scientific/Engineering :: Chemistry",
 ]
 
 dependencies = [
   "tqdm",
   "pandas",
   "rdkit >= 2023.03.1",
-  "pepsift @ git+https://github.com/OlivierBeq/PepSift.git#master",
+  "pepsift",
   "chembl_structure_pipeline >= 1.2.0",
-  "molspotter @ git+https://github.com/OlivierBeq/molspotter.git#master",
-  "molbloom @ git+https://github.com/whitead/molbloom.git#master",
+  "molspotter",
+  "molbloom",
   "loguru",
 ]
 
 [project.optional-dependencies]
 full = [
   "smallworld-api",
-  "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
+  "papyrus_structure_pipeline",
   "molvs",
 ]
 dev = [
@@ -45,7 +46,7 @@ dev = [
   "isort",
   "black",
   "smallworld-api",
-  "papyrus_structure_pipeline @ git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git",
+  "papyrus_structure_pipeline",
   "molvs",
 ]
 
