@@ -211,6 +211,7 @@ class MolPlotter(MoleculeHandler):
         explicitMethyl: bool = False,
         unspecifiedStereoIsUnknown: bool = False,
         bw: bool = False,
+        svg: bool = False,
     ) -> Draw.MolDraw2DCairo:
         """Function to get the rdkit's MolDraw2DCairo object with the desired options.
 
@@ -222,11 +223,15 @@ class MolPlotter(MoleculeHandler):
             unspecifiedStereoIsUnknown: unspecified stereo atoms/bonds are drawn as if
                 they were unknown. Defaults to False.
             bw: render the molecule as black and white. Defaults to False.
+            svg: if True, returns a Draw.MolDraw2DSVG object. Defaults to False.
 
         Returns:
             Draw.MolDraw2DCairo object with the desired options.
         """
-        d2d = Draw.MolDraw2DCairo(*self._size)
+        if svg:
+            d2d = Draw.MolDraw2DSVG(*self._size)
+        else:
+            d2d = Draw.MolDraw2DCairo(*self._size)
         dopts = d2d.drawOptions()
         dopts.fixedFontSize = self._font_size
         dopts.bondLineWidth = bondLineWidth
@@ -318,7 +323,7 @@ class MolPlotter(MoleculeHandler):
         self,
         mol: Chem.Mol,
         mean_bond_length: float = None,
-        label: str = "",
+        label: Optional[str] = None,
         return_svg=False,
         **kwargs,
     ) -> Union[Image.Image, str]:
@@ -337,7 +342,10 @@ class MolPlotter(MoleculeHandler):
             a PIL.Image.Image object or a string with the SVG representation in case
                 return_svg is True.
         """
-        d2d = self.get_d2d()
+        if label is None:
+            label = ""
+        mol = self._stdin_to_mol(mol)
+        d2d = self.get_d2d(svg=return_svg)
         Chem.rdDepictor.Compute2DCoords(mol)
         if mean_bond_length is None:
             mean_bond_length = Draw.MeanBondLength(mol)
@@ -353,7 +361,7 @@ class MolPlotter(MoleculeHandler):
     def render_mol(
         self,
         mol: Chem.Mol,
-        label: str = None,
+        label: Optional[str] = None,
         match_pose: Optional[Union[str, Chem.Mol]] = None,
         return_svg: bool = False,
         **kwargs,
@@ -399,13 +407,13 @@ class MolPlotter(MoleculeHandler):
             AllChem.GenerateDepictionMatching2DStructure(
                 mol, match_pose, acceptFailure=True
             )
-        d2d = self.get_d2d(**self.d2d_params)
+        d2d = self.get_d2d(**self.d2d_params, svg=return_svg)
         d2d.DrawMolecule(mol, legend=label, **kwargs)
         d2d.FinishDrawing()
-        if not return_svg:
-            img = Image.open(BytesIO(d2d.GetDrawingText()))
-        else:
+        if return_svg:
             img = d2d.GetDrawingText()
+        else:
+            img = Image.open(BytesIO(d2d.GetDrawingText()))
         return img
 
     def render_with_matches(
