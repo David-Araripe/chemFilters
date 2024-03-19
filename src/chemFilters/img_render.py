@@ -647,11 +647,19 @@ class MolGridPlotter(MolPlotter):
             variables = list(zip(mols, labels))
         else:
             variables = list(zip(mols))
-        with Pool(self._n_jobs) as p:
-            images = p.starmap(
-                partial(self.render_mol, match_pose=match_pose, **kwargs),
-                variables,
+        try:
+            with Pool(self._n_jobs) as p:
+                images = p.starmap(
+                    partial(self.render_mol, match_pose=match_pose, **kwargs),
+                    variables,
+                )
+        except RuntimeError as e:
+            logger.error(
+                "Runtime errors can occur when the molecule is too big for "
+                "the canvas size set by the user. Consider changing the `self.size` "
+                f"parameter. Error message:\n{e}"
             )
+            raise e
         image = self._images_to_grid(images, n_cols)
         return image
 
@@ -686,8 +694,16 @@ class MolGridPlotter(MolPlotter):
             variables = list(zip(mols, substructs, labels))
         else:
             variables = list(zip(mols, substructs))
-        with Pool(self._n_jobs) as p:
-            images = p.starmap(partial_function, variables)
+        try:
+            with Pool(self._n_jobs) as p:
+                images = p.starmap(partial_function, variables)
+        except RuntimeError as e:
+            logger.error(
+                "Runtime errors can occur when the molecule is too big for "
+                "the canvas size set by the user. Consider changing the `self.size` "
+                f"parameter. Error message:\n{e}"
+            )
+            raise e
         image = self._images_to_grid(images, n_cols)
         return image
 
@@ -725,7 +741,15 @@ class MolGridPlotter(MolPlotter):
             variables = list(zip(mols, descriptions, substructs, labels))
         else:
             variables = list(zip(mols, descriptions, substructs))
-        with Pool(self._n_jobs) as p:
-            images = p.starmap(partial_function, variables)
+        try:
+            with Pool(self._n_jobs) as p:
+                images = p.starmap(partial_function, variables)
+        except RuntimeError as e:
+            logger.error(
+                "Runtime errors can occur when the molecule is too big for "
+                "the canvas size set by the user. Consider changing the `self.size` "
+                f"parameter. Error message:\n{e}"
+            )
+            raise e
         image = self._images_to_grid(images, n_cols)
         return image
