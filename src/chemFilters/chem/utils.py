@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 """Utility functions to be used by the chemFilters.chem subpackage."""
 
+from contextlib import contextmanager
+
 from loguru import logger
-from rdkit import Chem, RDLogger
+from rdkit import Chem, RDLogger, rdBase
 from rdkit.Chem import inchi
 
 
-def RDKitVerbosityON():
-    """Switches on RDKit verbosity"""
-    lg = RDLogger.logger()
-    lg.setLevel(RDLogger.INFO)
-    return lg
+@contextmanager
+def rdkit_log_controller(level):
+    """Context manager for controlling the RDKit logger level.
 
-
-def RDKitVerbosityOFF():
-    """Switches off RDKit verbosity"""
+    Args:
+        level: desired logging level. One of `debug, info, warning, error, critical`.
+    """
     lg = RDLogger.logger()
-    lg.setLevel(RDLogger.CRITICAL)
-    return lg
+    lvl = level.upper()
+    # in case no logging is enable, it will be set to critical
+    lvl_list = rdBase.LogStatus().split("\n") + ["rdApp.critical:enabled"]
+    lg.setLevel(getattr(RDLogger, lvl))
+    init_lvl = [lev.split(":")[0] for lev in lvl_list if "enabled" in lev.lower()][0]
+    yield
+    lg.setLevel(getattr(RDLogger, init_lvl.split(".")[1].upper()))  # restore the level
 
 
 def molToConnectivity(mol: Chem.Mol):

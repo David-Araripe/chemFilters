@@ -3,7 +3,7 @@
 from functools import partial
 from importlib.util import find_spec
 from multiprocessing import Pool
-from typing import List, Union
+from typing import Callable, List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
 from loguru import logger
@@ -12,12 +12,11 @@ from tqdm import tqdm
 
 from .interface import MoleculeHandler
 from .utils import (
-    RDKitVerbosityOFF,
-    RDKitVerbosityON,
     molToCanon,
     molToConnectivity,
     molToInchi,
     molToInchiKey,
+    rdkit_log_controller,
 )
 
 if find_spec("papyrus_structure_pipeline"):
@@ -34,11 +33,11 @@ class ChemStandardizer(MoleculeHandler):
 
     def __init__(
         self,
-        method: str = "chembl",
+        method: Union[str, Callable] = "chembl",
         n_jobs: int = 5,
         isomeric: bool = True,
         progress: bool = False,
-        verbose: bool = True,
+        rdkit_loglevel: str = "warning",
         from_smi: bool = False,
         return_smi: bool = True,
         **kwargs,
@@ -46,13 +45,15 @@ class ChemStandardizer(MoleculeHandler):
         """Initializes the ChemStandardizer class.
 
         Args:
-            method: which standardization pipeline to use. Current supports "canon",
-                "chembl" and "papyrus", but the latter is an optional dependency.
-                Defaults to "chembl". "canon" is rdkit's SMILES canonicalization.
+            method: standardization pipeline to use. Current supports "canon",
+                "chembl", "papyrus", "molvs", or a callable. If callable, ensure it
+                takes rdkit.Mol objects as input. Defaults to "chembl". "canon" is
+                rdkit's SMILES canonicalization.
             n_jobs: number of jobs running in parallel. Defaults to 5.
             isomeric: output smiles with isomeric information. Defaults to True.
             progress: display a progress bar with tqdm. Defaults to False.
-            verbose: if false, silences rdkit errors. Defaults to True.
+            rdkit_loglevel: one of `debug, info, warning, error, critical`. Defaults to
+                "warning".
             from_smi: if True, the standardizer will expect SMILES strings as input.
                 Defaults to False.
             kwargs: additional keyword arguments to pass to the standardizer.
@@ -62,34 +63,55 @@ class ChemStandardizer(MoleculeHandler):
                 installed.
             ValueError: when an invalid method is passed.
         """
-        if method.lower() == "chembl":
-            self.standardizer = partial(self.chemblStandardizer, **kwargs)
-        elif method.lower() == "canon":
-            self.standardizer = partial(molToCanon, isomeric=isomeric, **kwargs)
-        elif method.lower() == "papyrus":
-            # avoid import since it's not a required dependency
-            if find_spec("papyrus_structure_pipeline"):
-                self.standardizer = partial(self.papyrusStandardizer, **kwargs)
-            else:
-                raise ImportError(
-                    "Optional dependency not found. Please install it by running:\n"
-                    "python -m pip install "
-                    "git+https://github.com/OlivierBeq/Papyrus_structure_pipeline.git"
+        if callable(method):
+            self.standardizer = method
+            self._custom_standardizer = True
+            logger.info(
+                "Custom standardizer detected!! "
+                "Ensure it takes Rdkit.Mol objecs as input."
+            )
+            try:
+                import pickle
+
+                _ = pickle.dumps(self.standardizer)
+                self._custom_is_pickable = True
+            except pickle.PicklingError:
+                logger.warning(
+                    "Custom standardizer is not pickable. Will use 'n_jobs' "
+                    "only to process `SMILES -> Mol` & `Mol -> SMILES` operations"
                 )
-        elif method.lower() == "molvs":
-            if find_spec("molvs"):
-                self.standardizer = partial(self.molvsStandardizer, **kwargs)
-            else:
-                raise ImportError(
-                    "Optional dependency not found. Please install it by running:\n"
-                    "python -m pip install molvs"
-                )
+                self._custom_is_pickable = False
         else:
-            raise ValueError(f"Invalid SMILES standardizing method: {method}")
+            self._custom_standardizer = False
+            self._custom_is_pickable = False
+            if method.lower() == "chembl":
+                self.standardizer = partial(self.chemblStandardizer, **kwargs)
+            elif method.lower() == "canon":
+                self.standardizer = partial(molToCanon, isomeric=isomeric, **kwargs)
+            elif method.lower() == "papyrus":
+                # avoid import since it's not a required dependency
+                if find_spec("papyrus_structure_pipeline"):
+                    self.standardizer = partial(self.papyrusStandardizer, **kwargs)
+                else:
+                    raise ImportError(
+                        "Optional dependency not found. Please install it by running:\n"
+                        "python -m pip install git+"
+                        "https://github.com/OlivierBeq/Papyrus_structure_pipeline.git"
+                    )
+            elif method.lower() == "molvs":
+                if find_spec("molvs"):
+                    self.standardizer = partial(self.molvsStandardizer, **kwargs)
+                else:
+                    raise ImportError(
+                        "Optional dependency not found. Please install it by running:\n"
+                        "python -m pip install molvs"
+                    )
+            else:
+                raise ValueError(f"Invalid SMILES standardizing method: {method}")
         super().__init__(from_smi)
         self.n_jobs = n_jobs
         self.progress = progress
-        self.verbose = verbose
+        self.rdkit_loglevel = rdkit_loglevel
         self.return_smi = return_smi
         self.method = method
         self.smi_out_func = partial(
@@ -107,19 +129,37 @@ class ChemStandardizer(MoleculeHandler):
         Returns:
             A list of standardized SMILES strings.
         """
-        if not self.verbose:
-            RDKitVerbosityOFF()
-        with Pool(self.n_jobs) as p:
-            if self.progress:
-                vals = list(tqdm(p.imap(self.standardizer, stdin), total=len(stdin)))
-            else:
-                vals = p.map(self.standardizer, stdin)
-            if self.return_smi and self.method != "canon":  # canon always returns smis
+        if self._custom_standardizer and not self._custom_is_pickable:
+            with Pool(self.n_jobs) as p:  # In this case will make
                 if self.progress:
-                    vals = list(tqdm(p.imap(self.smi_out_func, vals), total=len(vals)))
+                    std_inputs = list(
+                        tqdm(p.imap(self._output_mol, stdin), total=len(stdin))
+                    )
+                    vals = [self.standardizer(_inp) for _inp in std_inputs]
+                    vals = tqdm(p.imap(self.smi_out_func, vals), total=len(vals))
                 else:
+                    std_inputs = p.map(self._output_mol, stdin)
+                    vals = [self.standardizer(_inp) for _inp in std_inputs]
                     vals = p.map(self.smi_out_func, vals)
-        RDKitVerbosityON()  # restore the logger level
+                return vals
+
+        with rdkit_log_controller(self.rdkit_loglevel):
+            with Pool(self.n_jobs) as p:
+                if self.progress:
+                    vals = list(
+                        tqdm(p.imap(self.standardizer, stdin), total=len(stdin))
+                    )
+                else:
+                    vals = p.map(self.standardizer, stdin)
+                if (
+                    self.return_smi and self.method != "canon"
+                ):  # canon always returns smis
+                    if self.progress:
+                        vals = list(
+                            tqdm(p.imap(self.smi_out_func, vals), total=len(vals))
+                        )
+                    else:
+                        vals = p.map(self.smi_out_func, vals)
         return vals
 
     def papyrusStandardizer(
@@ -232,7 +272,7 @@ class InchiHandling(MoleculeHandler):
         convert_to: str,
         n_jobs: int = 5,
         progress: bool = False,
-        verbose: bool = True,
+        rdkit_loglevel: str = "warning",
         from_smi: bool = False,
     ) -> None:
         """Initialize the InchiHandling class.
@@ -242,7 +282,8 @@ class InchiHandling(MoleculeHandler):
                 "connectivity".
             n_jobs: Number of jobs for processing in parallel. Defaults to 5.
             progress: whether to show the progress bar. Defaults to False.
-            verbose: if false, will hide the rdkit warnings. Defaults to True.
+            rdkit_loglevel: one of `debug, info, warning, error, critical`. Defaults to
+                "warning".
             from_smi: if True, the standardizer will expect SMILES strings as input.
                 Defaults to False.
 
@@ -259,7 +300,7 @@ class InchiHandling(MoleculeHandler):
             raise ValueError(f"Invalid convertion method: {self.convert_to}")
         self.n_jobs = n_jobs
         self.progress = progress
-        self.verbose = verbose
+        self.rdkit_loglevel = rdkit_loglevel
         super().__init__(from_smi)
 
     def __call__(self, stdin: list) -> list:
@@ -273,14 +314,11 @@ class InchiHandling(MoleculeHandler):
         Returns:
             A list of standardized SMILES strings.
         """
-        if not self.verbose:
-            RDKitVerbosityOFF()
-        with Pool(self.n_jobs) as p:
-            mols = p.map(self._output_mol, stdin)
-            if self.progress:
-                vals = list(tqdm(p.imap(self.converter, mols), total=len(mols)))
-            else:
-                vals = p.map(self.converter, mols)
-        # restore the logger level
-        RDKitVerbosityON()
+        with rdkit_log_controller(self.rdkit_loglevel):
+            with Pool(self.n_jobs) as p:
+                mols = p.map(self._output_mol, stdin)
+                if self.progress:
+                    vals = list(tqdm(p.imap(self.converter, mols), total=len(mols)))
+                else:
+                    vals = p.map(self.converter, mols)
         return vals
