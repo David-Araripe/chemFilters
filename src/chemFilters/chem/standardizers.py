@@ -3,7 +3,7 @@
 from functools import partial
 from importlib.util import find_spec
 from multiprocessing import Pool
-from typing import Callable, List, Union
+from typing import Callable, Iterable, List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
 from loguru import logger
@@ -65,7 +65,6 @@ class ChemStandardizer(MoleculeHandler):
         """
         if callable(method):
             self.standardizer = method
-            self._custom_standardizer = True
             logger.info(
                 "Custom standardizer detected!! "
                 "Ensure it takes Rdkit.Mol objecs as input."
@@ -75,14 +74,13 @@ class ChemStandardizer(MoleculeHandler):
 
                 _ = pickle.dumps(self.standardizer)
                 self._custom_is_pickable = True
-            except pickle.PicklingError:
+            except (pickle.PicklingError, TypeError, AttributeError):
                 logger.warning(
                     "Custom standardizer is not pickable. Will use 'n_jobs' "
                     "only to process `SMILES -> Mol` & `Mol -> SMILES` operations"
                 )
                 self._custom_is_pickable = False
         else:
-            self._custom_standardizer = False
             self._custom_is_pickable = False
             if method.lower() == "chembl":
                 self.standardizer = partial(self.chemblStandardizer, **kwargs)
@@ -118,6 +116,41 @@ class ChemStandardizer(MoleculeHandler):
             MoleculeHandler(from_smi=False, isomeric=isomeric)._output_smi
         )
 
+    def pmap(
+        self,
+        n_jobs: int,
+        progress: bool,
+        stdin: Iterable,
+        func: Callable,
+        pickable: bool = True,
+    ):
+        """Helper function to map a function to an iterable using a multiprocessing pool.
+
+        Args:
+            n_jobs: number of jobs for the pool.
+            progress: display progress bar with tqdm.
+            stdin: iterable to map the function to.
+            func: function to be mapped to the variables.
+            pickable: bool indicating whether it should parallel process or not.
+                Defaults to True.
+
+        Returns:
+            A list of the results of the function mapped to the iterable.
+        """
+        if pickable:
+            with Pool(n_jobs) as p:
+                if progress:
+                    vals = list(tqdm(p.imap(func, stdin), total=len(stdin)))
+                else:
+                    vals = p.map(func, stdin)
+        else:
+            if progress:
+                vals = [func(_in) for _in in stdin]
+                list(tqdm(map(func, stdin), total=len(stdin)))
+            else:
+                vals = list(map(func, stdin))
+        return vals
+
     def __call__(self, stdin: List[Union[str, Chem.Mol]]) -> List[str]:
         """Calls the standardizer on a list of SMILES strings / Chem.Mol objects to
         perform the standardization according to the settings set at initialization.
@@ -129,37 +162,27 @@ class ChemStandardizer(MoleculeHandler):
         Returns:
             A list of standardized SMILES strings.
         """
-        if self._custom_standardizer and not self._custom_is_pickable:
-            with Pool(self.n_jobs) as p:  # In this case will make
-                if self.progress:
-                    std_inputs = list(
-                        tqdm(p.imap(self._output_mol, stdin), total=len(stdin))
-                    )
-                    vals = [self.standardizer(_inp) for _inp in std_inputs]
-                    vals = tqdm(p.imap(self.smi_out_func, vals), total=len(vals))
-                else:
-                    std_inputs = p.map(self._output_mol, stdin)
-                    vals = [self.standardizer(_inp) for _inp in std_inputs]
-                    vals = p.map(self.smi_out_func, vals)
-                return vals
-
+        if callable(self.method):
+            if self.method.__name__ == "<lambda>":
+                pickable = False
+            else:
+                pickable = self._custom_is_pickable
+        else:
+            pickable = True
         with rdkit_log_controller(self.rdkit_loglevel):
-            with Pool(self.n_jobs) as p:
-                if self.progress:
-                    vals = list(
-                        tqdm(p.imap(self.standardizer, stdin), total=len(stdin))
-                    )
-                else:
-                    vals = p.map(self.standardizer, stdin)
-                if (
-                    self.return_smi and self.method != "canon"
-                ):  # canon always returns smis
-                    if self.progress:
-                        vals = list(
-                            tqdm(p.imap(self.smi_out_func, vals), total=len(vals))
-                        )
-                    else:
-                        vals = p.map(self.smi_out_func, vals)
+            if self._from_smi and self.method == "canon":
+                stdin = self.pmap(self.n_jobs, self.progress, stdin, self._output_mol)
+            print("NOW PROCESSING")
+            vals = self.pmap(
+                self.n_jobs,
+                self.progress,
+                stdin,
+                self.standardizer,
+                pickable=pickable,
+            )
+            if self.return_smi and self.method != "canon":  # canon always returns smis
+                print("NOW LAST STEP")
+                vals = self.pmap(self.n_jobs, self.progress, vals, self.smi_out_func)
         return vals
 
     def papyrusStandardizer(
@@ -315,10 +338,6 @@ class InchiHandling(MoleculeHandler):
             A list of standardized SMILES strings.
         """
         with rdkit_log_controller(self.rdkit_loglevel):
-            with Pool(self.n_jobs) as p:
-                mols = p.map(self._output_mol, stdin)
-                if self.progress:
-                    vals = list(tqdm(p.imap(self.converter, mols), total=len(mols)))
-                else:
-                    vals = p.map(self.converter, mols)
+            mols = self.pmap(self.n_jobs, False, stdin, self._output_mol)
+            vals = self.pmap(self.n_jobs, self.progress, mols, self.converter)
         return vals
