@@ -136,7 +136,10 @@ class RdkitFilters(MoleculeHandler):
                 for names, descs in zip(filter_names, descriptions)
             ]
             final_df = pd.DataFrame(val_dicts)
-            final_df = final_df.applymap(lambda x: [] if pd.isnull(x) else [x])
+            for col in final_df.columns:
+                final_df[col] = final_df[col].apply(
+                    lambda x: [] if pd.isnull(x) else [x]
+                )
             final_df = (
                 final_df.apply(vectorized_flatten)
                 .replace({"": np.nan})
