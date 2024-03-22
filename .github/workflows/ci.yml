@@ -7,32 +7,46 @@ on:
     branches: [ master ]
 
 jobs:
-  ubuntu:
-    runs-on: ubuntu-latest
+  unit-tests:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+    
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
-    - name: Install dependencies
-      run: |
-        pip install -e .
-        pip install -e ".[dev]"
-    - name: Run tests
-      run: python -m unittest discover
+    - uses: actions/checkout@v4
 
-  macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.8'
-    - name: Install dependencies
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache Python Environment
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.pythonLocation }}
+        key: ${{ runner.os }}-${{ env.pythonLocation }}-${{ hashFiles('**/pyproject.toml') }}
+
+    - name: Install Dependencies
       run: |
-        pip install -e .
         pip install -e ".[dev]"
+        
+    - name: Display Environment Information
+      run: |
+        python -c "print('Python version: ' + '$(python --version)')"
+        python -c "import platform; print('System info: ', platform.system(), platform.release())"
+        python -c "import chemFilters; print('chem-filters version:', chemFilters.__version__)"
+    
     - name: Run tests
-      run: python -m unittest discover
+      run: pytest -xv tests/ --junitxml="test_report.xml"
+
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v4
+      if: success() || failure() # always run even if the previous step fails
+      with:
+        report_paths: 'testing/test_pytest/test_report.xml'
