@@ -25,6 +25,7 @@ classifiers = [
 
 dependencies = [
   "tqdm",
+  "numpy",
   "pandas",
   "rdkit >= 2023.03.1",
   "pepsift",
