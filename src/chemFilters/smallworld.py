@@ -2,12 +2,10 @@
 """Utility functions to be used in different modules of the chemFilters package."""
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from importlib.util import find_spec
 from pathlib import Path
 from typing import List
 
 import pandas as pd
-import pkg_resources
 from smallworld_api import SmallWorld
 
 from .chem.standardizers import ChemStandardizer, InchiHandling
@@ -46,16 +44,6 @@ class SmilesSearcher:
         self.standardizer = ChemStandardizer(
             n_jobs=self.n_jobs, from_smi=True, verbose=False
         )
-
-    @property
-    def smallWorldParameters(self):
-        """pd.Dataframe with the parameters for the Small World API.
-        Source: https://wiki.docking.org/index.php/How_to_use_SmallWorld_API
-        """
-        csv_path = pkg_resources.resource_filename(
-            "chemFilters", "resources/sw_parameters.csv"
-        )
-        return pd.read_csv(csv_path)
 
     @property
     def _swDBChoices(self) -> List:
