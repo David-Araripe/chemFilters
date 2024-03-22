@@ -5,7 +5,6 @@ import os
 import re
 import sys
 from functools import partial
-from importlib.resources import files
 from io import BytesIO
 from multiprocessing import Pool
 from pathlib import Path
@@ -22,6 +21,11 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 
 from .chem.interface import MoleculeHandler
+
+if sys.version_info >= (3, 9):
+    from importlib.resources import files
+else:
+    from importlib_resources import files
 
 
 class FontManager:
