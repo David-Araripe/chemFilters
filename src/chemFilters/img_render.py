@@ -5,6 +5,7 @@ import os
 import re
 import sys
 from functools import partial
+from importlib.resources import files
 from io import BytesIO
 from multiprocessing import Pool
 from pathlib import Path
@@ -14,7 +15,6 @@ import matplotlib.font_manager as fm
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import pkg_resources
 from loguru import logger
 from matplotlib import cm
 from PIL import Image
@@ -108,7 +108,7 @@ class FontManager:
         # add fonts from matplotlib
         font_dict.update({font.name: font.fname for font in fm.fontManager.ttflist})
         # add fonts from rdkit
-        font_dir = Path(pkg_resources.resource_filename("rdkit", "Data/Fonts"))
+        font_dir = Path(files("rdkit").joinpath("Data/Fonts"))
         font_dict.update({_path.stem: _path for _path in font_dir.glob("*.ttf")})
         return font_dict
 
@@ -124,10 +124,10 @@ class MolPlotter(MoleculeHandler):
         cmap: colormap for `render_with_color` method. Defaults to "rainbow".
         font_name: font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
-        font_size: size of the font patched to the image. Defaults to 15.
+        font_size: custom font size on the rendered molecules. Defaults to None.
         n_jobs: number of jobs to run in parallel. Defaults to 1.
         d2d_params: dictionary with the parameters to be passed to get_d2d method.
-        available_fonts: fonts available in the system and in matplotlib.
+        available_fonts: dictionary with fonts available in the system and in matplotlib
     """
 
     def __init__(
@@ -136,7 +136,7 @@ class MolPlotter(MoleculeHandler):
         size: tuple = (300, 300),
         cmap: str = "rainbow",
         font_name: str = "Telex-Regular",
-        font_size: int = 15,
+        font_size: int = None,
         n_jobs: int = 1,
         bond_line_width: float = 2.0,
         add_atom_indices: bool = False,
@@ -154,7 +154,7 @@ class MolPlotter(MoleculeHandler):
             size: size of the image to de displayed. Defaults to (300, 300).
             cmap: colormap for the structure matching. Defaults to "rainbow".
             font_name: font used on molecules' legends. Defaults to "DejaVu Sans".
-            font_size: size of the font on the legend. Defaults to 15.
+            font_size: custom font size on the rendered molecules. Defaults to None.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
             bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
             add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
@@ -233,7 +233,8 @@ class MolPlotter(MoleculeHandler):
         else:
             d2d = Draw.MolDraw2DCairo(*self._size)
         dopts = d2d.drawOptions()
-        dopts.fixedFontSize = self._font_size
+        if self._font_size is not None:
+            dopts.fixedFontSize = self._font_size
         dopts.bondLineWidth = bondLineWidth
         if addAtomIndices:
             dopts.noAtomLabels = True
@@ -563,10 +564,10 @@ class MolGridPlotter(MolPlotter):
         cmap: colormap for `render_with_color` method. Defaults to "rainbow".
         font_name: font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
-        font_size: size of the font patched to the image. Defaults to 15.
+        font_size: custom font size on the rendered molecules. Defaults to None.
         n_jobs: number of jobs to run in parallel. Defaults to 1.
         d2d_params: dictionary with the parameters to be passed to get_d2d method.
-        available_fonts: fonts available in the system and in matplotlib.
+        available_fonts: dictionary with fonts available in the system and in matplotlib
     """
 
     def __init__(
@@ -575,7 +576,7 @@ class MolGridPlotter(MolPlotter):
         size: Tuple = (300, 300),
         cmap: str = "rainbow",
         font_name: str = "Telex-Regular",
-        font_size: int = 15,
+        font_size: int = None,
         n_jobs: int = 1,
         bond_line_width: float = 2,
         add_atom_indices: bool = False,
@@ -593,7 +594,7 @@ class MolGridPlotter(MolPlotter):
             size: size of the image to de displayed. Defaults to (300, 300).
             cmap: colormap for the structure matching. Defaults to "rainbow".
             font_name: font used on molecules' legends. Defaults to "DejaVu Sans".
-            font_size: size of the font on the legend. Defaults to 15.
+            font_size: custom font size on the rendered molecules. Defaults to None.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
             bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
             add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
