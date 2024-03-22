@@ -33,6 +33,7 @@ dependencies = [
   "molspotter",
   "molbloom",
   "loguru",
+  "matplotlib",
 ]
 
 [project.optional-dependencies]
