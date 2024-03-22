@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -41,7 +41,7 @@ full = [
   "molvs",
 ]
 dev = [
-  "tox",
+  "pytest",
   "ruff",
   "isort",
   "black",
@@ -63,6 +63,9 @@ include-package-data = true
 
 [tool.setuptools.dynamic]
 version = { attr = "chemFilters.__version__" }
+
+[tool.setuptools_scm]
+write_to = "src/chemFilters/_version.py"
 
 [tool.isort]
 profile = "black"
