@@ -143,6 +143,7 @@ class MolPlotter(MoleculeHandler):
         font_size: int = None,
         n_jobs: int = 1,
         bond_line_width: float = 2.0,
+        no_atom_labels: bool = False,
         add_atom_indices: bool = False,
         add_bond_indices: bool = False,
         explicit_methyl: bool = False,
@@ -161,6 +162,7 @@ class MolPlotter(MoleculeHandler):
             font_size: custom font size on the rendered molecules. Defaults to None.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
             bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
+            no_atom_labels (MolDraw2DCairo): do not add atom labels to the rendered mol.
             add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
                 Defaults to False.
             add_bond_indices (MolDraw2DCairo): add bond indices to the rendered mols.
@@ -178,6 +180,7 @@ class MolPlotter(MoleculeHandler):
         self._n_jobs = n_jobs
         self.d2d_params = {
             "bondLineWidth": bond_line_width,
+            "noAtomLabels": no_atom_labels,
             "addAtomIndices": add_atom_indices,
             "addBondIndices": add_bond_indices,
             "explicitMethyl": explicit_methyl,
@@ -210,6 +213,7 @@ class MolPlotter(MoleculeHandler):
     def get_d2d(
         self,
         bondLineWidth: float = 2.0,
+        noAtomLabels: bool = False,
         addAtomIndices: bool = False,
         addBondIndices: bool = False,
         explicitMethyl: bool = False,
@@ -221,6 +225,7 @@ class MolPlotter(MoleculeHandler):
 
         Args:
             bondLineWidth: width of the bonds in the drawing. RDKit defaults to 2.0.
+            noAtomLabels: do not add atom labels to the rendered mol. Defaults to False.
             addAtomIndices: add the atom indices to the rendered mol. Defaults to False.
             addBondIndices: add the bond indices to the rendered mol. Defaults to False.
             explicitMethyl: explicitly displays a methil as CH3. Defaults to False.
@@ -240,8 +245,10 @@ class MolPlotter(MoleculeHandler):
         if self._font_size is not None:
             dopts.fixedFontSize = self._font_size
         dopts.bondLineWidth = bondLineWidth
-        if addAtomIndices:
+        if noAtomLabels:
             dopts.noAtomLabels = True
+        if addAtomIndices:
+            dopts.addAtomIndices  = True
         if addBondIndices:
             dopts.addBondIndices = True
         if explicitMethyl:
