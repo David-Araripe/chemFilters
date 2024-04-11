@@ -1,7 +1,9 @@
 from typing import Union
-
+from multiprocessing import Pool
+from typing import Iterable, Callable
 from loguru import logger
 from rdkit import Chem
+from tqdm import tqdm
 
 
 def mol_from_smi(smi: str):
@@ -90,3 +92,38 @@ class MoleculeHandler:
                     "If from_smi is False, inputs must be None or SMILES strings."
                 )
         return smi
+
+    def pmap(
+        self,
+        n_jobs: int,
+        progress: bool,
+        stdin: Iterable,
+        func: Callable,
+        pickable: bool = True,
+    ):
+        """Helper function to map a function to an iterable using a multiprocessing pool.
+
+        Args:
+            n_jobs: number of jobs for the pool.
+            progress: display progress bar with tqdm.
+            stdin: iterable to map the function to.
+            func: function to be mapped to the variables.
+            pickable: bool indicating whether it should parallel process or not.
+                Defaults to True.
+
+        Returns:
+            A list of the results of the function mapped to the iterable.
+        """  # TODO: convert this to use joblib instead
+        if pickable:
+            with Pool(n_jobs) as p:
+                if progress:
+                    vals = list(tqdm(p.imap(func, stdin), total=len(stdin)))
+                else:
+                    vals = p.map(func, stdin)
+        else:
+            if progress:
+                vals = [func(_in) for _in in stdin]
+                list(tqdm(map(func, stdin), total=len(stdin)))
+            else:
+                vals = list(map(func, stdin))
+        return vals

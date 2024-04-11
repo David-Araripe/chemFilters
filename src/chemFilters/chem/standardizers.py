@@ -2,13 +2,11 @@
 """Utility modules with functions for the chemFilters.chem subpackage."""
 from functools import partial
 from importlib.util import find_spec
-from multiprocessing import Pool
-from typing import Callable, Iterable, List, Union
+from typing import Callable, List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
 from loguru import logger
 from rdkit import Chem
-from tqdm import tqdm
 
 from .interface import MoleculeHandler
 from .utils import (
@@ -115,41 +113,6 @@ class ChemStandardizer(MoleculeHandler):
         self.smi_out_func = partial(
             MoleculeHandler(from_smi=False, isomeric=isomeric)._output_smi
         )
-
-    def pmap(
-        self,
-        n_jobs: int,
-        progress: bool,
-        stdin: Iterable,
-        func: Callable,
-        pickable: bool = True,
-    ):
-        """Helper function to map a function to an iterable using a multiprocessing pool.
-
-        Args:
-            n_jobs: number of jobs for the pool.
-            progress: display progress bar with tqdm.
-            stdin: iterable to map the function to.
-            func: function to be mapped to the variables.
-            pickable: bool indicating whether it should parallel process or not.
-                Defaults to True.
-
-        Returns:
-            A list of the results of the function mapped to the iterable.
-        """
-        if pickable:
-            with Pool(n_jobs) as p:
-                if progress:
-                    vals = list(tqdm(p.imap(func, stdin), total=len(stdin)))
-                else:
-                    vals = p.map(func, stdin)
-        else:
-            if progress:
-                vals = [func(_in) for _in in stdin]
-                list(tqdm(map(func, stdin), total=len(stdin)))
-            else:
-                vals = list(map(func, stdin))
-        return vals
 
     def __call__(self, stdin: List[Union[str, Chem.Mol]]) -> List[str]:
         """Calls the standardizer on a list of SMILES strings / Chem.Mol objects to
