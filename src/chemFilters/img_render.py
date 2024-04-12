@@ -123,13 +123,17 @@ class MolPlotter(MoleculeHandler):
     labels and/or substructure matches.
 
     Attributes:
-        from_smi: output images directly from smiles. Defaults to False.
-        size: size of the output images. Defaults to (300, 300).
-        cmap: colormap for `render_with_color` method. Defaults to "rainbow".
-        font_name: font name found by img_render.FondManager class.
+        _from_smi: output images directly from smiles. Defaults to False.
+        _cmap: colormap for `render_with_color` method. Defaults to "rainbow".
+        _size: size of the output images. Defaults to (300, 300).
+        _mol_font_size: custom font size on the rendered molecules. Defaults to None.
+        _label_font_size: custom font size for the label of the molecules, if any.
+            Defaults to None.
+        _annotation_font_scale: scale factor for the font size of the annotations.
+        _font_name: : font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
-        font_size: custom font size on the rendered molecules. Defaults to None.
-        n_jobs: number of jobs to run in parallel. Defaults to 1.
+        _n_jobs: number of jobs to run in parallel. Defaults to 1.
+        _bg_transparent: render the background as transparent. Defaults to False.
         d2d_params: dictionary with the parameters to be passed to get_d2d method.
         available_fonts: dictionary with fonts available in the system and in matplotlib
     """
@@ -140,14 +144,17 @@ class MolPlotter(MoleculeHandler):
         size: tuple = (300, 300),
         cmap: str = "rainbow",
         font_name: str = "Telex-Regular",
-        font_size: int = None,
+        label_font_size: int = None,
+        mol_font_size: int = None,
         n_jobs: int = 1,
         bond_line_width: float = 2.0,
         no_atom_labels: bool = False,
         add_atom_indices: bool = False,
         add_bond_indices: bool = False,
+        annotation_font_scale: float = None,
         explicit_methyl: bool = False,
         unspecified_stereo_unknown: bool = False,
+        bg_transparent: bool = False,
         bw: bool = False,
     ) -> None:
         """Initialize the MolPlotter class. The class is used to render molecules into
@@ -159,7 +166,9 @@ class MolPlotter(MoleculeHandler):
             size: size of the image to de displayed. Defaults to (300, 300).
             cmap: colormap for the structure matching. Defaults to "rainbow".
             font_name: font used on molecules' legends. Defaults to "DejaVu Sans".
-            font_size: custom font size on the rendered molecules. Defaults to None.
+            label_font_size: custom font size for the label of the molecules, if any.
+                Defaults to None.
+            mol_font_size: custom font size on the rendered molecules. Defaults to None.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
             bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
             no_atom_labels (MolDraw2DCairo): do not add atom labels to the rendered mol.
@@ -167,17 +176,23 @@ class MolPlotter(MoleculeHandler):
                 Defaults to False.
             add_bond_indices (MolDraw2DCairo): add bond indices to the rendered mols.
                 Defaults to False.
+            annotation_font_scale: scale factor for the font size of the annotations.
+                Defaults to None
             explicit_methyl (MolDraw2DCairo): explicitly displays a methil as CH3.
                 Defaults to False.
             unspecified_stereo_unknown (MolDraw2DCairo): unspecified stereo atoms/bonds
                 are drawn as if they were unknown. Defaults to False.
+            bg_transparent: render the background as transparent. Defaults to False.
             bw: render the molecule as black and white. Defaults to False.
         """
         self._cmap = cmap
         self._size = size
-        self._font_size = font_size
+        self._mol_font_size = mol_font_size
+        self._label_font_size = label_font_size
+        self._annotation_font_scale = annotation_font_scale
         self._font_name = font_name
         self._n_jobs = n_jobs
+        self._bg_transparent = bg_transparent
         self.d2d_params = {
             "bondLineWidth": bond_line_width,
             "noAtomLabels": no_atom_labels,
@@ -237,18 +252,25 @@ class MolPlotter(MoleculeHandler):
         Returns:
             Draw.MolDraw2DCairo object with the desired options.
         """
+        # TODO: for every kwarg passed here, take the attribute and set the value.
         if svg:
             d2d = Draw.MolDraw2DSVG(*self._size)
         else:
             d2d = Draw.MolDraw2DCairo(*self._size)
         dopts = d2d.drawOptions()
-        if self._font_size is not None:
-            dopts.fixedFontSize = self._font_size
+        if self._mol_font_size is not None:
+            dopts.fixedFontSize = self._mol_font_size
+        if self._label_font_size is not None:
+            dopts.legendFontSize = self._label_font_size
+        if self._annotation_font_scale is not None:
+            dopts.annotationFontScale = self._annotation_font_scale
+        if self._bg_transparent:
+            dopts.setBackgroundColour((0, 0, 0, 0))
         dopts.bondLineWidth = bondLineWidth
         if noAtomLabels:
             dopts.noAtomLabels = True
         if addAtomIndices:
-            dopts.addAtomIndices  = True
+            dopts.addAtomIndices = True
         if addBondIndices:
             dopts.addBondIndices = True
         if explicitMethyl:
@@ -570,13 +592,17 @@ class MolGridPlotter(MolPlotter):
     parent class.
 
     Attributes:
-        from_smi: output images directly from smiles. Defaults to False.
-        size: size of the output images. Defaults to (300, 300).
-        cmap: colormap for `render_with_color` method. Defaults to "rainbow".
-        font_name: font name found by img_render.FondManager class.
+        _from_smi: output images directly from smiles. Defaults to False.
+        _cmap: colormap for `render_with_color` method. Defaults to "rainbow".
+        _size: size of the output images. Defaults to (300, 300).
+        _mol_font_size: custom font size on the rendered molecules. Defaults to None.
+        _label_font_size: custom font size for the label of the molecules, if any.
+            Defaults to None.
+        _annotation_font_scale: scale factor for the font size of the annotations.
+        _font_name: : font name found by img_render.FondManager class.
             Defaults to "DejaVu Sans".
-        font_size: custom font size on the rendered molecules. Defaults to None.
-        n_jobs: number of jobs to run in parallel. Defaults to 1.
+        _n_jobs: number of jobs to run in parallel. Defaults to 1.
+        _bg_transparent: render the background as transparent. Defaults to False.
         d2d_params: dictionary with the parameters to be passed to get_d2d method.
         available_fonts: dictionary with fonts available in the system and in matplotlib
     """
@@ -587,14 +613,17 @@ class MolGridPlotter(MolPlotter):
         size: tuple = (300, 300),
         cmap: str = "rainbow",
         font_name: str = "Telex-Regular",
-        font_size: int = None,
+        label_font_size: int = None,
+        mol_font_size: int = None,
         n_jobs: int = 1,
         bond_line_width: float = 2.0,
         no_atom_labels: bool = False,
         add_atom_indices: bool = False,
         add_bond_indices: bool = False,
+        annotation_font_scale: float = None,
         explicit_methyl: bool = False,
         unspecified_stereo_unknown: bool = False,
+        bg_transparent: bool = False,
         bw: bool = False,
     ) -> None:
         """initialize the MolGridPlotter class. The class is used to render molecules
@@ -606,17 +635,23 @@ class MolGridPlotter(MolPlotter):
             size: size of the image to de displayed. Defaults to (300, 300).
             cmap: colormap for the structure matching. Defaults to "rainbow".
             font_name: font used on molecules' legends. Defaults to "DejaVu Sans".
-            font_size: custom font size on the rendered molecules. Defaults to None.
+            label_font_size: custom font size for the label of the molecules, if any.
+                Defaults to None.
+            mol_font_size: custom font size on the rendered molecules. Defaults to None.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
             bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
+            no_atom_labels (MolDraw2DCairo): do not add atom labels to the rendered mol.
             add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
                 Defaults to False.
             add_bond_indices (MolDraw2DCairo): add bond indices to the rendered mols.
                 Defaults to False.
+            annotation_font_scale: scale factor for the font size of the annotations.
+                Defaults to None
             explicit_methyl (MolDraw2DCairo): explicitly displays a methil as CH3.
                 Defaults to False.
             unspecified_stereo_unknown (MolDraw2DCairo): unspecified stereo atoms/bonds
                 are drawn as if they were unknown. Defaults to False.
+            bg_transparent: render the background as transparent. Defaults to False.
             bw: render the molecule as black and white. Defaults to False.
         """
         super().__init__(
@@ -624,14 +659,17 @@ class MolGridPlotter(MolPlotter):
             size,
             cmap,
             font_name,
-            font_size,
+            label_font_size,
+            mol_font_size,
             n_jobs,
             bond_line_width,
             no_atom_labels,
             add_atom_indices,
             add_bond_indices,
+            annotation_font_scale,
             explicit_methyl,
             unspecified_stereo_unknown,
+            bg_transparent,
             bw,
         )
 
