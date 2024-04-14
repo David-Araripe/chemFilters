@@ -5,9 +5,9 @@ from importlib.util import find_spec
 from typing import Callable, List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
-from loguru import logger
 from rdkit import Chem
 
+from ..logger import logger
 from .interface import MoleculeHandler
 from .utils import (
     molToCanon,

@@ -3,9 +3,10 @@
 
 from contextlib import contextmanager
 
-from loguru import logger
 from rdkit import Chem, RDLogger, rdBase
 from rdkit.Chem import inchi
+
+from ..logger import logger
 
 
 @contextmanager

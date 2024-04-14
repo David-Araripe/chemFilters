@@ -5,11 +5,11 @@ from typing import List, Union
 
 import numpy as np
 import pandas as pd
-from loguru import logger
 from pepsift import PepSift, SiftLevel
 from rdkit import Chem
 
 from ..chem.interface import MoleculeHandler
+from ..logger import logger
 
 STANDARD_PEP_COLS = [
     "NaturalLAminoAcids",

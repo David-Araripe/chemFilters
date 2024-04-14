@@ -7,11 +7,11 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from loguru import logger
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
 from ..chem.interface import MoleculeHandler
+from ..logger import logger
 from .utils import get_catalog_match
 
 STANDARD_RD_COLS = [
@@ -130,9 +130,11 @@ class RdkitFilters(MoleculeHandler):
         )
         if match_type.lower() == "string":
             val_dicts = [
-                dict(zip(names, descs))
-                if all([names is not None, descs is not None])
-                else {}
+                (
+                    dict(zip(names, descs))
+                    if all([names is not None, descs is not None])
+                    else {}
+                )
                 for names, descs in zip(filter_names, descriptions)
             ]
             final_df = pd.DataFrame(val_dicts)

@@ -1,9 +1,10 @@
-from typing import Union
 from multiprocessing import Pool
-from typing import Iterable, Callable
-from loguru import logger
+from typing import Callable, Iterable, Union
+
 from rdkit import Chem
 from tqdm import tqdm
+
+from ..logger import logger
 
 
 def mol_from_smi(smi: str):
