@@ -14,13 +14,13 @@ import matplotlib.font_manager as fm
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-from loguru import logger
 from matplotlib import cm
 from PIL import Image
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 
 from .chem.interface import MoleculeHandler
+from .logger import logger
 
 if sys.version_info >= (3, 9):
     from importlib.resources import files
@@ -425,16 +425,19 @@ class MolPlotter(MoleculeHandler):
             if isinstance(match_pose, Chem.rdchem.Mol):
                 AllChem.Compute2DCoords(match_pose)
             else:
-                ref_mol = Chem.MolFromSmiles(match_pose)
-                if ref_mol is None:
-                    logger.warning(
-                        'Error: "match_pose" from SMILES RDKit Mol is invalid.'
-                    )
-                    logger.warning('Trying "match_pose" from SMARTS...')
+                if "#" in match_pose:
+                    logger.debug('Trying "match_pose" from SMARTS...')
                     ref_mol = Chem.MolFromSmarts(match_pose)
                     if ref_mol is None:
                         raise ValueError(
-                            'Error: "match_pose" invalid from SMILES & SMARTS.'
+                            'Error: "match_pose" from SMARTS RDKit Mol is invalid.'
+                        )
+                else:
+                    logger.debug('Trying "match_pose" from SMILES...')
+                    ref_mol = Chem.MolFromSmiles(match_pose)
+                    if ref_mol is None:
+                        logger.warning(
+                            'Error: "match_pose" invalid from SMARTS & SMILES.'
                         )
                 match_pose = ref_mol
             AllChem.Compute2DCoords(match_pose)
