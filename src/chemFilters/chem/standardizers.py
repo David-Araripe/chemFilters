@@ -135,7 +135,6 @@ class ChemStandardizer(MoleculeHandler):
         with rdkit_log_controller(self.rdkit_loglevel):
             if self._from_smi and self.method == "canon":
                 stdin = self.pmap(self.n_jobs, self.progress, stdin, self._output_mol)
-            print("NOW PROCESSING")
             vals = self.pmap(
                 self.n_jobs,
                 self.progress,
@@ -144,7 +143,6 @@ class ChemStandardizer(MoleculeHandler):
                 pickable=pickable,
             )
             if self.return_smi and self.method != "canon":  # canon always returns smis
-                print("NOW LAST STEP")
                 vals = self.pmap(self.n_jobs, self.progress, vals, self.smi_out_func)
         return vals
 
