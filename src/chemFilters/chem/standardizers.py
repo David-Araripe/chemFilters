@@ -209,6 +209,7 @@ class ChemStandardizer(MoleculeHandler):
                 sanitize=True,
                 **{"check_exclusion": kwargs.get("check_exclusion", True)},
             )
+            Chem.SanitizeMol(standard_mol)
         except TypeError as e:
             logger.exception("Error standardizing molecule: ", stdin)
             logger.exception(e)
