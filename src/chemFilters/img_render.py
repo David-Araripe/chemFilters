@@ -379,11 +379,14 @@ class MolPlotter(MoleculeHandler):
         if label is None:
             label = ""
         mol = self._stdin_to_mol(mol)
-        d2d = self.get_d2d(svg=return_svg)
+        d2d = self.get_d2d(svg=return_svg, **self.d2d_params)
         Chem.rdDepictor.Compute2DCoords(mol)
         if mean_bond_length is None:
             mean_bond_length = Draw.MeanBondLength(mol)
-        Draw.SetACS1996Mode(d2d.drawOptions(), mean_bond_length)
+        dopts = d2d.drawOptions()
+        Draw.SetACS1996Mode(dopts, mean_bond_length)
+        if self._bg_transparent:
+            dopts.setBackgroundColour((0, 0, 0, 0))
         d2d.DrawMolecule(mol, legend=label, **kwargs)
         d2d.FinishDrawing()
         if not return_svg:
