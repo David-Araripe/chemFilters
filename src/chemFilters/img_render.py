@@ -156,6 +156,7 @@ class MolPlotter(MoleculeHandler):
         unspecified_stereo_unknown: bool = False,
         bg_transparent: bool = False,
         bw: bool = False,
+        **kwargs,
     ) -> None:
         """Initialize the MolPlotter class. The class is used to render molecules into
         either .sdf or .png files. It uses RDKit's DrawMolecule method to generate the
@@ -184,6 +185,8 @@ class MolPlotter(MoleculeHandler):
                 are drawn as if they were unknown. Defaults to False.
             bg_transparent: render the background as transparent. Defaults to False.
             bw: render the molecule as black and white. Defaults to False.
+            kwargs: additional keyword arguments defining extra MolDraw2D attributes, set
+                by passing them to `self.get_d2d` method.
         """
         self._cmap = cmap
         self._size = size
@@ -201,6 +204,7 @@ class MolPlotter(MoleculeHandler):
             "explicitMethyl": explicit_methyl,
             "unspecifiedStereoIsUnknown": unspecified_stereo_unknown,
             "bw": bw,
+            **kwargs
         }
         self._check_font(font_name)
         super().__init__(from_smi)
@@ -235,6 +239,7 @@ class MolPlotter(MoleculeHandler):
         unspecifiedStereoIsUnknown: bool = False,
         bw: bool = False,
         svg: bool = False,
+        **kwargs
     ) -> Draw.MolDraw2DCairo:
         """Function to get the rdkit's MolDraw2DCairo object with the desired options.
 
@@ -248,6 +253,7 @@ class MolPlotter(MoleculeHandler):
                 they were unknown. Defaults to False.
             bw: render the molecule as black and white. Defaults to False.
             svg: if True, returns a Draw.MolDraw2DSVG object. Defaults to False.
+            kwargs: additional keyword arguments defining extra MolDraw2D attributes.
 
         Returns:
             Draw.MolDraw2DCairo object with the desired options.
@@ -279,6 +285,10 @@ class MolPlotter(MoleculeHandler):
             dopts.unspecifiedStereoIsUnknown = True
         if bw:
             dopts.useBWAtomPalette()
+        if kwargs:
+            for key, value in kwargs.items():
+                logger.trace(f"Setting {key} to {value} in MolDraw2D options.")
+                setattr(dopts, key, value)
         font_path = self.available_fonts.get(self._font_name)
         dopts.fontFile = str(font_path)
         return d2d
@@ -631,6 +641,7 @@ class MolGridPlotter(MolPlotter):
         unspecified_stereo_unknown: bool = False,
         bg_transparent: bool = False,
         bw: bool = False,
+        **kwargs,
     ) -> None:
         """initialize the MolGridPlotter class. The class is used to render molecules
         into either .sdf or .png files. It uses RDKit's DrawMolecule method to generate
@@ -659,6 +670,8 @@ class MolGridPlotter(MolPlotter):
                 are drawn as if they were unknown. Defaults to False.
             bg_transparent: render the background as transparent. Defaults to False.
             bw: render the molecule as black and white. Defaults to False.
+            kwargs: additional keyword arguments defining extra MolDraw2D attributes, set
+                by passing them to `self.get_d2d` method.
         """
         super().__init__(
             from_smi,
@@ -677,6 +690,7 @@ class MolGridPlotter(MolPlotter):
             unspecified_stereo_unknown,
             bg_transparent,
             bw,
+            **kwargs,
         )
 
     def mol_grid_png(
