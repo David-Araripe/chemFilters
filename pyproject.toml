@@ -39,7 +39,6 @@ dependencies = [
 
 [project.optional-dependencies]
 full = [
-  "smallworld-api",
   "papyrus_structure_pipeline",
   "molvs",
 ]
@@ -48,7 +47,6 @@ dev = [
   "ruff",
   "isort",
   "black",
-  "smallworld-api",
   "papyrus_structure_pipeline",
   "molvs",
 ]
