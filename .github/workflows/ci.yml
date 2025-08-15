@@ -52,7 +52,10 @@ jobs:
         python -c "print('Python version: ' + '$(python --version)')"
         python -c "import platform; print('System info: ', platform.system(), platform.release())"
         python -c "import chemFilters; print('chem-filters version:', chemFilters.__version__)"
-    
+        python -c "print('')"
+        python -c "import molbloom; print('molbloom version:', molbloom.__version__)"
+        python -c "import rdkit; print('rdkit version:', rdkit.__version__)"s
+
     - name: Run tests
       run: pytest -xv tests/ --junitxml="test_report.xml"
 

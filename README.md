@@ -7,7 +7,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Workflow](https://github.com/David-Araripe/chemFilters/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/David-Araripe/UniProtMapper/actions)
+[![Workflow](https://github.com/David-Araripe/chemFilters/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/David-Araripe/chemFilters/actions)
 
 </div>
 
