@@ -1,9 +1,9 @@
 """Unit tests for the chemFilters.rdkit_filters module."""
+
 import unittest
 from pathlib import Path
 
 import pandas as pd
-from black import assert_stable
 from rdkit import Chem
 
 from chemFilters.core import CoreFilter
