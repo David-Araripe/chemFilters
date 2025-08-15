@@ -1,19 +1,24 @@
+<div align="center">
+
+  <img src="logo.svg" alt="" width=360>
+  <p><strong>Flag issues, standardize, and visualize molecular structures with ease.</strong></p>
+
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Workflow](https://github.com/David-Araripe/chemFilters/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/David-Araripe/UniProtMapper/actions)
 
-# chemFilters
+</div>
 
-A collection of chemical filters, with some support for data visualization and analysis. At the moment, the supported filters are:
+A collection of chemical filters, with some support for data visualization and analysis. Supported filters include:
 
-- RDKit filters based on RDKit implementation of [Pat Walter's version of the ChEMBL filters](https://github.com/PatWalters/rd_filters)*;
-- Purchasability filters based on Andrew White's [molbloom](https://github.com/whitead/molbloom);
-- Peptide filters based on Olivier Béquignon's [PepSift](https://github.com/OlivierBeq/PepSift);
-- Silly molecules filters based Olivier's fork of Pat Water's [silly walks](https://github.com/PatWalters/silly_walks);
+- RDKit's [structural alert filters](https://www.rdkit.org/docs/source/rdkit.Chem.rdfiltercatalog.html#rdkit.Chem.rdfiltercatalog.FilterCatalogParams.FilterCatalogs)* including BMS, Dundee, Glaxo, Inpharmatica, LINT, MLSMR, PAINS, and SureChEMBL `FilterCatalogs`;
+- Purchasability filters based on [molbloom](https://github.com/whitead/molbloom);
+- SMARTS-like Peptide filters as implemented in [PepSift](https://github.com/OlivierBeq/PepSift);
+- Silly molecules filters as implemented in [molspotter](https://github.com/OlivierBeq/molspotter);
 
-*note: RDKit's implementation these chemical filters is only available from rdkit version 2023.03.1 onwards. Check here for the [release notes](https://greglandrum.github.io/rdkit-blog/posts/2023-05-03-new-release-highlights.html).
+*Note: RDKit's implementation these chemical filters is only available from rdkit version 2023.03.1 onwards. Check here for the [release notes](https://greglandrum.github.io/rdkit-blog/posts/2023-05-03-new-release-highlights.html).
 
 ## Overview:
 
