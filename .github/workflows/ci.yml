@@ -54,7 +54,7 @@ jobs:
         python -c "import chemFilters; print('chem-filters version:', chemFilters.__version__)"
         python -c "print('')"
         python -c "import molbloom; print('molbloom version:', molbloom.__version__)"
-        python -c "import rdkit; print('rdkit version:', rdkit.__version__)"s
+        python -c "import rdkit; print('rdkit version:', rdkit.__version__)"
 
     - name: Run tests
       run: pytest -xv tests/ --junitxml="test_report.xml"
