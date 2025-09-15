@@ -8,7 +8,7 @@ from functools import partial
 from io import BytesIO
 from multiprocessing import Pool
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 
 import matplotlib.font_manager as fm
 import matplotlib.patches as mpatches
@@ -36,11 +36,9 @@ class FontManager:
         Args:
             wsl: If you're using windows subsystem for linux. Allows for using fonts
                 installed in windows. Defaults to "auto".
-            include_plt: Includes fonts available in matplotlib. Defaults to True.
         """
         self.wsl = wsl
         self.fonts = None
-        pass
 
     @property
     def operating_system(self):
@@ -48,55 +46,70 @@ class FontManager:
             return "windows"
         elif os.name == "posix":
             if sys.platform.startswith("linux"):
-                if self.wsl:
-                    wsl_pattern = re.compile(r"wsl|windows", re.IGNORECASE)
-                    with open("/proc/version", "r") as f:
-                        content = f.read()
-                    if wsl_pattern.findall(content):
-                        return "wsl"
+                if self.wsl == "auto":
+                    # Auto-detect WSL
+                    try:
+                        wsl_pattern = re.compile(r"wsl|windows", re.IGNORECASE)
+                        with open("/proc/version", "r") as f:
+                            content = f.read()
+                        if wsl_pattern.findall(content):
+                            return "wsl"
+                    except (FileNotFoundError, PermissionError):
+                        pass
+                elif self.wsl:
+                    return "wsl"
                 return "linux"
             elif sys.platform.startswith("darwin"):
                 return "macos"
         return "Unknown"
 
     @property
-    def available_fonts(self):
+    def available_fonts(self) -> Dict[str, Path]:
         font_dict = dict()
-        font_extensions = "[.ttf|.otf|.eot|.woff|.woff2|.svg]"
+        font_extensions = ["*.ttf", "*.otf", "*.eot", "*.woff", "*.woff2", "*.svg"]
 
         if self.operating_system == "windows":
             default_font_dir = Path("C:/Windows/Fonts")
             if default_font_dir.exists():
-                font_paths = sorted(list(default_font_dir.glob(f"*{font_extensions}")))
-                font_dict.update({_path.stem: _path for _path in font_paths})
+                for ext in font_extensions:
+                    font_paths = sorted(list(default_font_dir.glob(ext)))
+                    font_dict.update({_path.stem: _path for _path in font_paths})
+            
             font_dir = Path.home() / "AppData/Local/Microsoft/Windows/Fonts"
-            font_paths = sorted(list(font_dir.glob(f"*{font_extensions}")))
-            font_dict.update({_path.stem: _path for _path in font_paths})
+            if font_dir.exists():
+                for ext in font_extensions:
+                    font_paths = sorted(list(font_dir.glob(ext)))
+                    font_dict.update({_path.stem: _path for _path in font_paths})
 
         elif self.operating_system == "wsl":
             # Search within the default windows path
             default_font_dir = Path("/mnt/c/Windows/Fonts")
             if default_font_dir.exists():
-                font_paths = sorted(list(default_font_dir.glob(f"*{font_extensions}")))
-                font_dict.update({_path.stem: _path for _path in font_paths})
+                for ext in font_extensions:
+                    font_paths = sorted(list(default_font_dir.glob(ext)))
+                    font_dict.update({_path.stem: _path for _path in font_paths})
+            
             user_dir = Path("/mnt/c/Users/")
-            font_dir = list(user_dir.glob("*/AppData/Local/Microsoft/Windows/Fonts"))
-            if len(font_dir) > 1:
+            font_dirs = list(user_dir.glob("*/AppData/Local/Microsoft/Windows/Fonts"))
+            if len(font_dirs) > 1:
                 print("More than one user font path found.")
-            for _dir in font_dir:
-                font_paths = sorted(list(_dir.glob(f"*{font_extensions}")))
-                font_dict.update({_path.stem: _path for _path in font_paths})
+            for _dir in font_dirs:
+                if _dir.exists():
+                    for ext in font_extensions:
+                        font_paths = sorted(list(_dir.glob(ext)))
+                        font_dict.update({_path.stem: _path for _path in font_paths})
 
         elif self.operating_system == "linux":
-            font_dir = [
+            font_dirs = [
                 Path("/usr/share/fonts"),
                 Path("/usr/local/share/fonts"),
                 Path("~/.fonts").expanduser(),
             ]
-            for _dir in font_dir:
+            for _dir in font_dirs:
                 if _dir.exists():
-                    font_paths = sorted(list(_dir.glob(f"*{font_extensions}")))
-                    font_dict.update({_path.stem: _path for _path in font_paths})
+                    for ext in font_extensions:
+                        font_paths = sorted(list(_dir.rglob(ext)))
+                        font_dict.update({_path.stem: _path for _path in font_paths})
 
         elif self.operating_system == "macos":
             font_dirs = [
@@ -106,15 +119,56 @@ class FontManager:
             ]
             for _dir in font_dirs:
                 if _dir.exists():
-                    font_paths = sorted(list(_dir.glob(f"*{font_extensions}")))
-                    font_dict.update({_path.stem: _path for _path in font_paths})
+                    for ext in font_extensions:
+                        font_paths = sorted(list(_dir.rglob(ext)))
+                        font_dict.update({_path.stem: _path for _path in font_paths})
 
-        # add fonts from matplotlib
-        font_dict.update({font.name: font.fname for font in fm.fontManager.ttflist})
-        # add fonts from rdkit
-        font_dir = Path(files("rdkit").joinpath("Data/Fonts"))
-        font_dict.update({_path.stem: _path for _path in font_dir.glob("*.ttf")})
+        # Add fonts from matplotlib
+        try:
+            font_dict.update({font.name: Path(font.fname) for font in fm.fontManager.ttflist})
+        except Exception as e:
+            print(f"Warning: Could not load matplotlib fonts: {e}")
+
+        # Add fonts from RDKit
+        try:
+            from rdkit import RDPaths
+            rdkit_data_dir = Path(RDPaths.RDDataDir)
+            rdkit_font_dir = rdkit_data_dir / "Fonts"
+            
+            if rdkit_font_dir.exists():
+                font_paths = sorted(list(rdkit_font_dir.glob("*.ttf")))
+                font_dict.update({_path.stem: _path for _path in font_paths})
+        except Exception as e:
+            print(f"Warning: Could not load RDKit fonts: {e}")
+
         return font_dict
+
+    def get_font_path(self, font_name: str) -> Union[Path, None]:
+        """Get the path to a specific font by name.
+        
+        Args:
+            font_name: Name of the font to find
+            
+        Returns:
+            Path to the font file or None if not found
+        """
+        fonts = self.available_fonts
+        return fonts.get(font_name)
+
+    def list_available_fonts(self) -> list:
+        """Return a list of all available font names."""
+        return list(self.available_fonts.keys())
+
+    def has_font(self, font_name: str) -> bool:
+        """Check if a font is available.
+        
+        Args:
+            font_name: Name of the font to check
+            
+        Returns:
+            True if font is available, False otherwise
+        """
+        return font_name in self.available_fonts
 
 
 class MolPlotter(MoleculeHandler):
