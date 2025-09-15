@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+
+import warnings
+
+from .version_helper import get_version
+
 try:
     from .filters.bloom_filters import MolbloomFilters  # noqa F401
     from .filters.pep_filters import PeptideFilters  # noqa F401
@@ -6,6 +11,8 @@ try:
     from .filters.silly_filters import SillyMolSpotterFilter  # noqa F401
 except ImportError:
     pass
-from .version_helper import get_version
 
 __version__ = get_version()
+warnings.filterwarnings(
+    "ignore", message=".*boost::shared_ptr.*FilterHierarchyMatcher.*"
+)

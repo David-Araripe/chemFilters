@@ -2,17 +2,16 @@
 """Utility functions to be used in different modules of the chemFilters package."""
 
 from rdkit import Chem
-from rdkit.Chem.FilterCatalog import FilterCatalog
 
 
 def get_catalog_match(
-    mol: Chem.Mol, catalog: FilterCatalog, match_type: str = "string"
+    mol: Chem.Mol, catalog: Chem.FilterCatalog, match_type: str = "string"
 ):
     """Get the filter names, descriptions, and respective substructures from
     rdkit.Chem.FilterCatalog.FilterCatalogParams.GetMatches. Used to get results in
     parallel using multiprocessing.Pool. The match_type parameter is used to save time
     on `RdkitFilters.get_flagging_df` by not having to return the substructures if not
-    desred by the user.
+    desired by the user.
 
     Args:
         mol: rdkitm.Chem.Mol object to be filtered.

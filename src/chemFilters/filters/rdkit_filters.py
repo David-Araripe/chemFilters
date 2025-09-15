@@ -35,6 +35,8 @@ FILTER_COLLECTIONS = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of f
 
 
 class RdkitFilters(MoleculeHandler):
+    _filter_catalog_cache = {}
+
     def __init__(self, filter_type="ALL", n_jobs=1, from_smi: bool = False) -> None:
         """Initiaze RdkitFilters object.
 
@@ -55,13 +57,18 @@ class RdkitFilters(MoleculeHandler):
         return [m for m in dir(allFilt) if any([m.isupper(), m.startswith("CHEMBL_")])]
 
     def _get_filter(self):
-        """Get the filter from RDKit FilterCatalogs."""
+        """Get the filter from RDKit FilterCatalogs, using cache to avoid duplicate registrations."""
         if self.filter_type not in self.available_filters:
             raise ValueError(f"Filter type {self.filter_type} not available.")
-        _filter = getattr(FilterCatalogParams.FilterCatalogs, self.filter_type)
-        catalog = FilterCatalogParams()
-        catalog.AddCatalog(_filter)
-        return FilterCatalog(catalog)
+
+        # Check if this filter type is already cached
+        if self.filter_type not in self._filter_catalog_cache:
+            _filter = getattr(FilterCatalogParams.FilterCatalogs, self.filter_type)
+            catalog = FilterCatalogParams()
+            catalog.AddCatalog(_filter)
+            self._filter_catalog_cache[self.filter_type] = FilterCatalog(catalog)
+
+        return self._filter_catalog_cache[self.filter_type]
 
     def filter_mols(
         self,
