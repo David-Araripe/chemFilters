@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import warnings
-
 from .version_helper import get_version
 
 try:
@@ -13,6 +11,3 @@ except ImportError:
     pass
 
 __version__ = get_version()
-warnings.filterwarnings(
-    "ignore", message=".*boost::shared_ptr.*FilterHierarchyMatcher.*"
-)

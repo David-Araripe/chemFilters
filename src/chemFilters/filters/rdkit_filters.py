@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
 """A module for filtering molecules using RDKit FilterCatalogs."""
 
+import warnings
 from functools import partial
 from multiprocessing import Pool
 from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+
+warnings.filterwarnings(  # Ugly workaround to avoid RDKit from complaining
+    "ignore", message=".*boost::shared_ptr.*FilterHierarchyMatcher.*"
+)
+
 from rdkit import Chem
 from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
