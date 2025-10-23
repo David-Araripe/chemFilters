@@ -134,16 +134,30 @@ class ChemStandardizer(MoleculeHandler):
             pickable = True
         with rdkit_log_controller(self.rdkit_loglevel):
             if self._from_smi and self.method == "canon":
-                stdin = self.pmap(self.n_jobs, self.progress, stdin, self._output_mol)
+                stdin = self.pmap(
+                    self.n_jobs,
+                    self.progress,
+                    stdin,
+                    self._output_mol,
+                    custom_desc="Parsing input SMILES",
+                )
+            method_name = self.method if isinstance(self.method, str) else "custom"
             vals = self.pmap(
                 self.n_jobs,
                 self.progress,
                 stdin,
                 self.standardizer,
                 pickable=pickable,
+                custom_desc=f"Standardizing molecules ({method_name})",
             )
             if self.return_smi and self.method != "canon":  # canon always returns smis
-                vals = self.pmap(self.n_jobs, self.progress, vals, self.smi_out_func)
+                vals = self.pmap(
+                    self.n_jobs,
+                    self.progress,
+                    vals,
+                    self.smi_out_func,
+                    custom_desc="Converting to canonical SMILES",
+                )
         return vals
 
     def papyrusStandardizer(
@@ -204,14 +218,40 @@ class ChemStandardizer(MoleculeHandler):
                     "verbose": kwargs.get("verbose", False),
                 },
             )[0]
+        except Chem.rdchem.AtomValenceException:
+            stdin_str = stdin if isinstance(stdin, str) else Chem.MolToSmiles(mol)
+            logger.error(
+                f"AtomValenceException getting {stdin_str} parent mol. Skipping step."
+            )
+            parent_mol = mol
+        except TypeError:
+            stdin_str = stdin if isinstance(stdin, str) else Chem.MolToSmiles(mol)
+            logger.exception(
+                f"TypeError getting {stdin_str} parent mol. Skipping step."
+            )
+            parent_mol = mol
+        except Exception as e:
+            stdin_str = stdin if isinstance(stdin, str) else Chem.MolToSmiles(mol)
+            logger.exception(f"{type(e).__name__} getting {stdin_str} parent mol")
+            raise e
+        try:
             standard_mol = chembl_std.standardize_mol(
                 parent_mol,
                 sanitize=True,
                 **{"check_exclusion": kwargs.get("check_exclusion", True)},
             )
             Chem.SanitizeMol(standard_mol)
+        except Chem.rdchem.AtomValenceException:
+            parent_mol_str = Chem.MolToSmiles(parent_mol)
+            stdin_str = stdin if isinstance(stdin, str) else Chem.MolToSmiles(mol)
+            logger.error(
+                f"AtomValenceException standardizing parent molecule: {parent_mol_str} "
+                f"from input {stdin_str}. Returning None."
+            )
+            standard_mol = None
         except TypeError as e:
-            logger.exception("Error standardizing molecule: ", stdin)
+            parent_mol_str = Chem.MolToSmiles(parent_mol)
+            logger.exception(f"Error standardizing parent molecule: {parent_mol_str}")
             logger.exception(e)
             standard_mol = None
         return standard_mol
@@ -299,7 +339,29 @@ class InchiHandling(MoleculeHandler):
         Returns:
             A list of standardized SMILES strings.
         """
+        # Determine conversion type for progress description
+        if self.converter == molToInchi:
+            convert_type = "InChI"
+        elif self.converter == molToInchiKey:
+            convert_type = "InChIKey"
+        elif self.converter == molToConnectivity:
+            convert_type = "connectivity"
+        else:
+            convert_type = "identifier"
+
         with rdkit_log_controller(self.rdkit_loglevel):
-            mols = self.pmap(self.n_jobs, False, stdin, self._output_mol)
-            vals = self.pmap(self.n_jobs, self.progress, mols, self.converter)
+            mols = self.pmap(
+                self.n_jobs,
+                False,
+                stdin,
+                self._output_mol,
+                custom_desc="Parsing molecules",
+            )
+            vals = self.pmap(
+                self.n_jobs,
+                self.progress,
+                mols,
+                self.converter,
+                custom_desc=f"Converting to {convert_type}",
+            )
         return vals

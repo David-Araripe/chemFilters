@@ -1,8 +1,7 @@
-from multiprocessing import Pool
 from typing import Callable, Iterable, Union
 
+from job_tqdflex import ParallelApplier
 from rdkit import Chem
-from tqdm import tqdm
 
 from ..logger import logger
 
@@ -101,30 +100,38 @@ class MoleculeHandler:
         stdin: Iterable,
         func: Callable,
         pickable: bool = True,
+        custom_desc: str = None,
     ):
-        """Helper function to map a function to an iterable using a multiprocessing pool.
+        """Helper function to map a function to an iterable using ParallelApplier.
 
         Args:
-            n_jobs: number of jobs for the pool.
+            n_jobs: number of jobs for parallel processing.
             progress: display progress bar with tqdm.
             stdin: iterable to map the function to.
             func: function to be mapped to the variables.
-            pickable: bool indicating whether it should parallel process or not.
+            pickable: bool indicating whether the function can be parallelized.
                 Defaults to True.
+            custom_desc: custom description for the progress bar. Defaults to None.
 
         Returns:
             A list of the results of the function mapped to the iterable.
-        """  # TODO: convert this to use joblib instead
+        """
         if pickable:
-            with Pool(n_jobs) as p:
-                if progress:
-                    vals = list(tqdm(p.imap(func, stdin), total=len(stdin)))
-                else:
-                    vals = p.map(func, stdin)
+            applier = ParallelApplier(
+                func,
+                stdin,
+                n_jobs=n_jobs,
+                show_progress=progress,
+                backend="loky",
+                custom_desc=custom_desc,
+            )
+            vals = applier()
         else:
+            # Fallback to sequential processing for non-pickable functions
             if progress:
-                vals = [func(_in) for _in in stdin]
-                list(tqdm(map(func, stdin), total=len(stdin)))
+                from tqdm import tqdm
+
+                vals = [func(_in) for _in in tqdm(stdin, desc=custom_desc)]
             else:
                 vals = list(map(func, stdin))
         return vals

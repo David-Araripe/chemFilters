@@ -35,6 +35,7 @@ dependencies = [
   "molbloom",
   "loguru",
   "matplotlib",
+  "job-tqdflex >= 0.1.1",
 ]
 
 [project.optional-dependencies]

@@ -3,11 +3,11 @@
 
 import warnings
 from functools import partial
-from multiprocessing import Pool
 from typing import List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from job_tqdflex import ParallelApplier
 
 warnings.filterwarnings(  # Ugly workaround to avoid RDKit from complaining
     "ignore", message=".*boost::shared_ptr.*FilterHierarchyMatcher.*"
@@ -94,16 +94,31 @@ class RdkitFilters(MoleculeHandler):
             descriptions: list of filter descriptions that were matched.
             substructs: list of substructures that were matched.
         """
-        with Pool(self.n_jobs) as p:
-            mols = p.map(self._output_mol, stdin)
-            result = p.map(
-                partial(
-                    get_catalog_match,
-                    catalog=self.filter,
-                    match_type=match_type,
-                ),
-                mols,
-            )
+        applier = ParallelApplier(
+            self._output_mol,
+            stdin,
+            n_jobs=self.n_jobs,
+            show_progress=False,
+            backend="loky",
+            custom_desc="Converting to RDKit molecules",
+        )
+        mols = applier()
+
+        catalog_func = partial(
+            get_catalog_match,
+            catalog=self.filter,
+            match_type=match_type,
+        )
+        applier = ParallelApplier(
+            catalog_func,
+            mols,
+            n_jobs=self.n_jobs,
+            show_progress=False,
+            backend="loky",
+            custom_desc="Applying RDKit filter catalog",
+        )
+        result = applier()
+
         filter_names, descriptions, substructs = zip(*result)
         return filter_names, descriptions, substructs
 
@@ -168,8 +183,15 @@ class RdkitFilters(MoleculeHandler):
                 )
                 final_df[col] = names_series.apply(lambda x, col: col in x, col=col)
         # Add smiles to the final dataframe
-        with Pool(self.n_jobs) as p:
-            smiles = p.map(self._output_smi, stdin)
+        applier = ParallelApplier(
+            self._output_smi,
+            stdin,
+            n_jobs=self.n_jobs,
+            show_progress=False,
+            backend="loky",
+            custom_desc="Converting filtered results to SMILES",
+        )
+        smiles = applier()
         final_df.insert(0, "SMILES", smiles)
         # if there are any errors, set the smiles to NaN
         error_idx = [i for i, x in enumerate(filter_names) if x is None]

@@ -4,16 +4,15 @@
 import os
 import re
 import sys
-from functools import partial
 from io import BytesIO
-from multiprocessing import Pool
 from pathlib import Path
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
 
 import matplotlib.font_manager as fm
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+from job_tqdflex import ParallelApplier
 from matplotlib import cm
 from PIL import Image
 from rdkit import Chem
@@ -74,7 +73,7 @@ class FontManager:
                 for ext in font_extensions:
                     font_paths = sorted(list(default_font_dir.glob(ext)))
                     font_dict.update({_path.stem: _path for _path in font_paths})
-            
+
             font_dir = Path.home() / "AppData/Local/Microsoft/Windows/Fonts"
             if font_dir.exists():
                 for ext in font_extensions:
@@ -88,7 +87,7 @@ class FontManager:
                 for ext in font_extensions:
                     font_paths = sorted(list(default_font_dir.glob(ext)))
                     font_dict.update({_path.stem: _path for _path in font_paths})
-            
+
             user_dir = Path("/mnt/c/Users/")
             font_dirs = list(user_dir.glob("*/AppData/Local/Microsoft/Windows/Fonts"))
             if len(font_dirs) > 1:
@@ -125,16 +124,19 @@ class FontManager:
 
         # Add fonts from matplotlib
         try:
-            font_dict.update({font.name: Path(font.fname) for font in fm.fontManager.ttflist})
+            font_dict.update(
+                {font.name: Path(font.fname) for font in fm.fontManager.ttflist}
+            )
         except Exception as e:
             print(f"Warning: Could not load matplotlib fonts: {e}")
 
         # Add fonts from RDKit
         try:
             from rdkit import RDPaths
+
             rdkit_data_dir = Path(RDPaths.RDDataDir)
             rdkit_font_dir = rdkit_data_dir / "Fonts"
-            
+
             if rdkit_font_dir.exists():
                 font_paths = sorted(list(rdkit_font_dir.glob("*.ttf")))
                 font_dict.update({_path.stem: _path for _path in font_paths})
@@ -145,10 +147,10 @@ class FontManager:
 
     def get_font_path(self, font_name: str) -> Union[Path, None]:
         """Get the path to a specific font by name.
-        
+
         Args:
             font_name: Name of the font to find
-            
+
         Returns:
             Path to the font file or None if not found
         """
@@ -161,10 +163,10 @@ class FontManager:
 
     def has_font(self, font_name: str) -> bool:
         """Check if a font is available.
-        
+
         Args:
             font_name: Name of the font to check
-            
+
         Returns:
             True if font is available, False otherwise
         """
@@ -258,7 +260,7 @@ class MolPlotter(MoleculeHandler):
             "explicitMethyl": explicit_methyl,
             "unspecifiedStereoIsUnknown": unspecified_stereo_unknown,
             "bw": bw,
-            **kwargs
+            **kwargs,
         }
         self._check_font(font_name)
         super().__init__(from_smi)
@@ -293,7 +295,7 @@ class MolPlotter(MoleculeHandler):
         unspecifiedStereoIsUnknown: bool = False,
         bw: bool = False,
         svg: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Draw.MolDraw2DCairo:
         """Function to get the rdkit's MolDraw2DCairo object with the desired options.
 
@@ -773,12 +775,21 @@ class MolGridPlotter(MolPlotter):
             variables = list(zip(mols, labels))
         else:
             variables = list(zip(mols))
+
+        def _unpack_render_mol(args):
+            """Wrapper to unpack tuple arguments for ParallelApplier."""
+            return self.render_mol(*args, match_pose=match_pose, **kwargs)
+
         try:
-            with Pool(self._n_jobs) as p:
-                images = p.starmap(
-                    partial(self.render_mol, match_pose=match_pose, **kwargs),
-                    variables,
-                )
+            applier = ParallelApplier(
+                _unpack_render_mol,
+                variables,
+                n_jobs=self._n_jobs,
+                show_progress=False,
+                backend="loky",
+                custom_desc="Rendering molecule grid",
+            )
+            images = applier()
         except RuntimeError as e:
             logger.error(
                 "Runtime errors can occur when the molecule is too big for "
@@ -812,17 +823,26 @@ class MolGridPlotter(MolPlotter):
         Returns:
             PIL.Image.Image
         """
-        partial_function = partial(
-            self.render_with_matches, match_pose=match_pose, **kwargs
-        )
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
             variables = list(zip(mols, substructs, labels))
         else:
             variables = list(zip(mols, substructs))
+
+        def _unpack_render_with_matches(args):
+            """Wrapper to unpack tuple arguments for ParallelApplier."""
+            return self.render_with_matches(*args, match_pose=match_pose, **kwargs)
+
         try:
-            with Pool(self._n_jobs) as p:
-                images = p.starmap(partial_function, variables)
+            applier = ParallelApplier(
+                _unpack_render_with_matches,
+                variables,
+                n_jobs=self._n_jobs,
+                show_progress=False,
+                backend="loky",
+                custom_desc="Rendering molecules with highlighted substructures",
+            )
+            images = applier()
         except RuntimeError as e:
             logger.error(
                 "Runtime errors can occur when the molecule is too big for "
@@ -859,17 +879,28 @@ class MolGridPlotter(MolPlotter):
             PIL.Image.Image
         """
         mols = self._stdin_to_mol(mols)
-        partial_function = partial(
-            self.render_with_colored_matches, match_pose=match_pose, **kwargs
-        )
         if labels is not None:
             assert len(labels) == len(mols), "Labels and mols must have the same length"
             variables = list(zip(mols, descriptions, substructs, labels))
         else:
             variables = list(zip(mols, descriptions, substructs))
+
+        def _unpack_render_with_colored_matches(args):
+            """Wrapper to unpack tuple arguments for ParallelApplier."""
+            return self.render_with_colored_matches(
+                *args, match_pose=match_pose, **kwargs
+            )
+
         try:
-            with Pool(self._n_jobs) as p:
-                images = p.starmap(partial_function, variables)
+            applier = ParallelApplier(
+                _unpack_render_with_colored_matches,
+                variables,
+                n_jobs=self._n_jobs,
+                show_progress=False,
+                backend="loky",
+                custom_desc="Rendering molecules with colored matches",
+            )
+            images = applier()
         except RuntimeError as e:
             logger.error(
                 "Runtime errors can occur when the molecule is too big for "

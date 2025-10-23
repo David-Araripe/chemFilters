@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """Wrapper class for molbloom. Original repo: https://github.com/whitead/molbloom"""
 from itertools import product
-from multiprocessing import Pool
 from pathlib import Path
 from typing import List, Union
 
 import numpy as np
 import pandas as pd
+from job_tqdflex import ParallelApplier
 from molbloom import _DEFAULT_PATH, _load_filter, buy, catalogs
 from rdkit import Chem
 
@@ -100,8 +100,15 @@ class MolbloomFilters(MoleculeHandler):
         if self._standardize:
             smiles = self._smiles_standardizer(stdin)
         else:
-            with Pool(self._n_jobs) as p:
-                smiles = p.map(self._output_smi, stdin)
+            applier = ParallelApplier(
+                self._output_smi,
+                stdin,
+                n_jobs=self._n_jobs,
+                show_progress=False,
+                backend="loky",
+                custom_desc="Converting molecules to SMILES",
+            )
+            smiles = applier()
 
         all_params = list(product(smiles, self._catalogs))
         results = [self.buy_smi(smi, cat) for smi, cat in all_params]

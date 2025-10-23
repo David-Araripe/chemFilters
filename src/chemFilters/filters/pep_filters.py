@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from itertools import product
-from multiprocessing import Pool
 from typing import List, Union
 
 import numpy as np
 import pandas as pd
+from job_tqdflex import ParallelApplier
 from pepsift import PepSift, SiftLevel
 from rdkit import Chem
 
@@ -120,9 +120,21 @@ class PeptideFilters(MoleculeHandler):
             List[bool]: a list of booleans indicating whether the molecule is a peptide
                 according to the initialized filter level on `self.filter`.
         """
-        with Pool(self._n_jobs) as p:
-            bool_mask = p.map(self._peptide_filter_func, stdin)
+        applier = ParallelApplier(
+            self._peptide_filter_func,
+            stdin,
+            n_jobs=self._n_jobs,
+            show_progress=False,
+            backend="loky",
+            custom_desc="Filtering peptides with PepSift",
+        )
+        bool_mask = applier()
         return bool_mask
+
+    def _unpack_peptide_filter(self, args):
+        """Wrapper function to unpack starmap arguments for ParallelApplier."""
+        mol, filter_obj = args
+        return self._peptide_filter_func(mol, filter_obj)
 
     def get_flagging_df(self, stdin: List[Union[str, Chem.Mol]]):
         """Will flag the molecules according to all filter types avialable in pepsift.
@@ -137,9 +149,25 @@ class PeptideFilters(MoleculeHandler):
         all_filters = [self._get_filter(idx) for idx in range(1, 6)]
         all_params = list(product(stdin, all_filters))
 
-        with Pool(self._n_jobs) as p:
-            results = p.starmap(self._peptide_filter_func, all_params)
-            smiles = p.map(self._output_smi, stdin)
+        applier = ParallelApplier(
+            self._unpack_peptide_filter,
+            all_params,
+            n_jobs=self._n_jobs,
+            show_progress=False,
+            backend="loky",
+            custom_desc="Testing peptide filters (all levels)",
+        )
+        results = applier()
+
+        applier = ParallelApplier(
+            self._output_smi,
+            stdin,
+            n_jobs=self._n_jobs,
+            show_progress=False,
+            backend="loky",
+            custom_desc="Converting to SMILES",
+        )
+        smiles = applier()
 
         df = pd.DataFrame(
             np.array(results).reshape(-1, len(all_filters)),

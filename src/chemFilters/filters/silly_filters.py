@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """Wrapper function for molspotter, a tool based on Pat Water's silly walks (hence the module name)"""  # noqa: E501
 from itertools import product
-from multiprocessing import Pool
 from typing import List, Union
 
 import numpy as np
 import pandas as pd
+from job_tqdflex import ParallelApplier
 from molspotter import SillyMolSpotter
 from rdkit import Chem
 
@@ -83,6 +83,11 @@ class SillyMolSpotterFilter(MoleculeHandler):
             )
             return None
 
+    def _unpack_score_smi(self, args):
+        """Wrapper function to unpack starmap arguments for ParallelApplier."""
+        smi, spotter_name = args
+        return self.score_smi(smi, spotter_name)
+
     def get_scoring_df(self, stdin: List[Union[str, Chem.Mol]]):
         """Get a dataframe with the scoring results for each spotter.
 
@@ -98,12 +103,26 @@ class SillyMolSpotterFilter(MoleculeHandler):
             if smiles == []:
                 raise ValueError("No valid SMILES found in the input.")
         else:
-            with Pool(self._n_jobs) as p:
-                smiles = p.map(self._output_smi, stdin)
+            applier = ParallelApplier(
+                self._output_smi,
+                stdin,
+                n_jobs=self._n_jobs,
+                show_progress=False,
+                backend="loky",
+                custom_desc="Converting to SMILES",
+            )
+            smiles = applier()
 
-        with Pool(self._n_jobs) as p:
-            all_params = list(product(smiles, self._spotters.keys()))
-            results = p.starmap(self.score_smi, all_params)
+        all_params = list(product(smiles, self._spotters.keys()))
+        applier = ParallelApplier(
+            self._unpack_score_smi,
+            all_params,
+            n_jobs=self._n_jobs,
+            show_progress=False,
+            backend="loky",
+            custom_desc="Scoring molecules with SillyMolSpotter",
+        )
+        results = applier()
 
         num_spotters = len(self._spotters)
         df = pd.DataFrame(

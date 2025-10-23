@@ -104,6 +104,12 @@ class TestChemStandardizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.chembl_mol_standardizer(self.test_smiles)
 
+    def test_chembl_valence_error_handling(self):
+        """Test that compounds with valence errors are handled gracefully."""
+        problematic_smi = "F[As-](F)(F)(F)(F)F"
+        result = self.chembl_smi_standardizer([problematic_smi])
+        self.assertEqual(result, [None])
+
     def tearDown(self):
         pass
 
