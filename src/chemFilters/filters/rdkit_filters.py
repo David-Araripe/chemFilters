@@ -43,17 +43,22 @@ FILTER_COLLECTIONS = ["PAINS", "CHEMBL", "BRENK", "ALL"]  # Are collections of f
 class RdkitFilters(MoleculeHandler):
     _filter_catalog_cache = {}
 
-    def __init__(self, filter_type="ALL", n_jobs=1, from_smi: bool = False) -> None:
+    def __init__(
+        self, filter_type="ALL", n_jobs=1, from_smi: bool = False, chunk_size: int = None
+    ) -> None:
         """Initiaze RdkitFilters object.
 
         Args:
             filter_type: type of filter from RDKit FilterCatalogs. Defaults to "ALL".
             n_jobs: number of jobs if wanted to run things in parallel. Defaults to 1.
             from_smi = if True, will do the conversion from SMILES to RDKit Mol object.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
         """
         self.filter_type = filter_type
         self.filter = self._get_filter()
         self.n_jobs = n_jobs
+        self.chunk_size = chunk_size
         super().__init__(from_smi=from_smi)
 
     @property
@@ -101,6 +106,7 @@ class RdkitFilters(MoleculeHandler):
             show_progress=False,
             backend="loky",
             custom_desc="Converting to RDKit molecules",
+            chunk_size=self.chunk_size,
         )
         mols = applier()
 
@@ -116,6 +122,7 @@ class RdkitFilters(MoleculeHandler):
             show_progress=False,
             backend="loky",
             custom_desc="Applying RDKit filter catalog",
+            chunk_size=self.chunk_size,
         )
         result = applier()
 
@@ -190,6 +197,7 @@ class RdkitFilters(MoleculeHandler):
             show_progress=False,
             backend="loky",
             custom_desc="Converting filtered results to SMILES",
+            chunk_size=self.chunk_size,
         )
         smiles = applier()
         final_df.insert(0, "SMILES", smiles)

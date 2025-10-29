@@ -133,6 +133,43 @@ class TestCoreFilter(unittest.TestCase):
         expected = self.expected_filtered_df.drop(columns=absent_cols)
         pd.testing.assert_frame_equal(filtered_df.drop(columns="SMILES"), expected)
 
+    def test_parallel_chunk_size_parameter(self):
+        """Test that parallel_chunk_size parameter is accepted and works correctly."""
+        # Test with default chunk_size (None - auto-calculated)
+        coreFilter_default = CoreFilter(**self.standard_params, parallel_chunk_size=None)
+        result_default = coreFilter_default.filter_smiles(
+            self.test_smiles[:10], chunksize=10
+        )
+
+        # Test with explicit chunk_size
+        coreFilter_chunked = CoreFilter(
+            **self.standard_params, parallel_chunk_size=2
+        )
+        result_chunked = coreFilter_chunked.filter_smiles(
+            self.test_smiles[:10], chunksize=10
+        )
+
+        # Both should produce the same results
+        self.assertEqual(len(result_default), len(result_chunked))
+        self.assertEqual(list(result_default.columns), list(result_chunked.columns))
+
+        # Test SMILES preservation
+        np.testing.assert_array_equal(
+            result_default.SMILES.values, result_chunked.SMILES.values
+        )
+
+        # Test non-bloom columns for exact match
+        non_bloom_cols = [
+            col for col in result_default.columns if not col.startswith("BLOOM_")
+        ]
+        for col in non_bloom_cols:
+            if col != "SMILES":
+                np.testing.assert_array_equal(
+                    result_default[col].fillna("").values,
+                    result_chunked[col].fillna("").values,
+                    f"Column {col} values don't match with different chunk sizes",
+                )
+
     def tearDown(self) -> None:
         return super().tearDown()
 

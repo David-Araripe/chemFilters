@@ -101,6 +101,7 @@ class MoleculeHandler:
         func: Callable,
         pickable: bool = True,
         custom_desc: str = None,
+        chunk_size: int = None,
     ):
         """Helper function to map a function to an iterable using ParallelApplier.
 
@@ -112,6 +113,8 @@ class MoleculeHandler:
             pickable: bool indicating whether the function can be parallelized.
                 Defaults to True.
             custom_desc: custom description for the progress bar. Defaults to None.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
 
         Returns:
             A list of the results of the function mapped to the iterable.
@@ -124,6 +127,7 @@ class MoleculeHandler:
                 show_progress=progress,
                 backend="loky",
                 custom_desc=custom_desc,
+                chunk_size=chunk_size,
             )
             vals = applier()
         else:

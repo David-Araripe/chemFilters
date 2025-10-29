@@ -56,6 +56,7 @@ class CoreFilter:
         std_mols: bool = True,
         std_method: str = "chembl",
         n_jobs=1,
+        parallel_chunk_size: int = None,
     ) -> None:
         """Initialize the CoreFilter class. The filters are initialized with the default
         parameters.
@@ -73,6 +74,8 @@ class CoreFilter:
             std_mols: whether to standardize the mols. Defaults to True.
             std_method: standardization method to be used. Defaults to "chembl".
             n_jobs: number of jobs to run in parallel. Defaults to 1.
+            parallel_chunk_size: size of chunks for ParallelApplier. If None,
+                auto-calculated. Defaults to None.
         """
         self.toggle_rdkit_filter = rdkit_filter
         self.rdfilter_subset = rdfilter_subset
@@ -82,21 +85,39 @@ class CoreFilter:
         self.toggle_bloom_filter = bloom_filter
         self.std_mols = std_mols
         self.n_jobs = n_jobs
-        self._configure_filters(std_method, n_jobs)
+        self.parallel_chunk_size = parallel_chunk_size
+        self._configure_filters(std_method, n_jobs, parallel_chunk_size)
 
-    def _configure_filters(self, std_method: str, n_jobs: int):
+    def _configure_filters(
+        self, std_method: str, n_jobs: int, parallel_chunk_size: int = None
+    ):
         """Configure the filters. Right now it only sets them up, but could be adjusted
         for more flexibility in the future."""
         if self.toggle_rdkit_filter:
             self.rdFilter = RdkitFilters(
-                filter_type=self.rdfilter_subset, from_smi=False, n_jobs=n_jobs
+                filter_type=self.rdfilter_subset,
+                from_smi=False,
+                n_jobs=n_jobs,
+                chunk_size=parallel_chunk_size,
             )
         if self.toggle_pep_filter:
-            self.pepFilter = PeptideFilters(from_smi=False)
+            self.pepFilter = PeptideFilters(
+                from_smi=False, n_jobs=n_jobs, chunk_size=parallel_chunk_size
+            )
         if self.toggle_bloom_filter:
-            self.bloomFilter = MolbloomFilters(from_smi=False, standardize=False)
+            self.bloomFilter = MolbloomFilters(
+                from_smi=False,
+                standardize=False,
+                n_jobs=n_jobs,
+                chunk_size=parallel_chunk_size,
+            )
         if self.toggle_silly_filter:
-            self.sillyFilter = SillyMolSpotterFilter(from_smi=False, standardize=False)
+            self.sillyFilter = SillyMolSpotterFilter(
+                from_smi=False,
+                standardize=False,
+                n_jobs=n_jobs,
+                chunk_size=parallel_chunk_size,
+            )
         if self.std_mols:
             self.molStandardizer = ChemStandardizer(
                 method=std_method,
@@ -104,6 +125,7 @@ class CoreFilter:
                 return_smi=False,
                 n_jobs=n_jobs,
                 verbose=False,
+                chunk_size=parallel_chunk_size,
             )
 
     def _get_chunks(self, smiles: List[str], chunksize: int) -> List[List[str]]:
@@ -126,6 +148,7 @@ class CoreFilter:
                 show_progress=False,
                 backend="loky",
                 custom_desc="Parsing SMILES",
+                chunk_size=self.parallel_chunk_size,
             )
             mols = applier()
             if self.std_mols:
@@ -137,6 +160,7 @@ class CoreFilter:
                 show_progress=False,
                 backend="loky",
                 custom_desc="Generating SMILES",
+                chunk_size=self.parallel_chunk_size,
             )
             smiles = applier()
 

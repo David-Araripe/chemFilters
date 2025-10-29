@@ -37,6 +37,7 @@ class PeptideFilters(MoleculeHandler):
         filter_type: Union[str, int] = "all",
         from_smi: bool = False,
         n_jobs: int = 1,
+        chunk_size: int = None,
     ) -> None:
         """Initialize the PeptideFilters class.
 
@@ -45,10 +46,13 @@ class PeptideFilters(MoleculeHandler):
                 filters on `self.available filters`. Defaults to "all".
             from_smi: treats standard inputs (stdin) as smiles. Defaults to False.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
         """
         self.filter_type = filter_type
         self.filter = self._get_filter(_type=filter_type)
         self._n_jobs = n_jobs
+        self._chunk_size = chunk_size
         super().__init__(from_smi=from_smi)
 
     @property
@@ -127,6 +131,7 @@ class PeptideFilters(MoleculeHandler):
             show_progress=False,
             backend="loky",
             custom_desc="Filtering peptides with PepSift",
+            chunk_size=self._chunk_size,
         )
         bool_mask = applier()
         return bool_mask
@@ -156,6 +161,7 @@ class PeptideFilters(MoleculeHandler):
             show_progress=False,
             backend="loky",
             custom_desc="Testing peptide filters (all levels)",
+            chunk_size=self._chunk_size,
         )
         results = applier()
 
@@ -166,6 +172,7 @@ class PeptideFilters(MoleculeHandler):
             show_progress=False,
             backend="loky",
             custom_desc="Converting to SMILES",
+            chunk_size=self._chunk_size,
         )
         smiles = applier()
 

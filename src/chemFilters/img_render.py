@@ -203,6 +203,7 @@ class MolPlotter(MoleculeHandler):
         label_font_size: int = None,
         mol_font_size: int = None,
         n_jobs: int = 1,
+        chunk_size: int = None,
         bond_line_width: float = 2.0,
         no_atom_labels: bool = False,
         add_atom_indices: bool = False,
@@ -227,6 +228,8 @@ class MolPlotter(MoleculeHandler):
                 Defaults to None.
             mol_font_size: custom font size on the rendered molecules. Defaults to None.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
             bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
             no_atom_labels (MolDraw2DCairo): do not add atom labels to the rendered mol.
             add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
@@ -251,6 +254,7 @@ class MolPlotter(MoleculeHandler):
         self._annotation_font_scale = annotation_font_scale
         self._font_name = font_name
         self._n_jobs = n_jobs
+        self._chunk_size = chunk_size
         self._bg_transparent = bg_transparent
         self.d2d_params = {
             "bondLineWidth": bond_line_width,
@@ -688,6 +692,7 @@ class MolGridPlotter(MolPlotter):
         label_font_size: int = None,
         mol_font_size: int = None,
         n_jobs: int = 1,
+        chunk_size: int = None,
         bond_line_width: float = 2.0,
         no_atom_labels: bool = False,
         add_atom_indices: bool = False,
@@ -712,6 +717,8 @@ class MolGridPlotter(MolPlotter):
                 Defaults to None.
             mol_font_size: custom font size on the rendered molecules. Defaults to None.
             n_jobs: number of jobs to run in parallel. Defaults to 1.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
             bond_line_width (MolDraw2DCairo): width of bond lines. Defaults to 2.0.
             no_atom_labels (MolDraw2DCairo): do not add atom labels to the rendered mol.
             add_atom_indices (MolDraw2DCairo): add atom indices to the rendered mols.
@@ -737,6 +744,7 @@ class MolGridPlotter(MolPlotter):
             label_font_size,
             mol_font_size,
             n_jobs,
+            chunk_size,
             bond_line_width,
             no_atom_labels,
             add_atom_indices,
@@ -788,6 +796,7 @@ class MolGridPlotter(MolPlotter):
                 show_progress=False,
                 backend="loky",
                 custom_desc="Rendering molecule grid",
+                chunk_size=self._chunk_size,
             )
             images = applier()
         except RuntimeError as e:
@@ -841,6 +850,7 @@ class MolGridPlotter(MolPlotter):
                 show_progress=False,
                 backend="loky",
                 custom_desc="Rendering molecules with highlighted substructures",
+                chunk_size=self._chunk_size,
             )
             images = applier()
         except RuntimeError as e:
@@ -899,6 +909,7 @@ class MolGridPlotter(MolPlotter):
                 show_progress=False,
                 backend="loky",
                 custom_desc="Rendering molecules with colored matches",
+                chunk_size=self._chunk_size,
             )
             images = applier()
         except RuntimeError as e:

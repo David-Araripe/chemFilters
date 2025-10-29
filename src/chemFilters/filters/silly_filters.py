@@ -35,7 +35,13 @@ class SillyMolSpotterFilter(MoleculeHandler):
     """
 
     def __init__(
-        self, from_smi=False, standardize=False, std_method="chembl", n_jobs=1, **kwargs
+        self,
+        from_smi=False,
+        standardize=False,
+        std_method="chembl",
+        n_jobs=1,
+        chunk_size: int = None,
+        **kwargs,
     ):
         """Initialize the SillyMolSpotterFilter class.
 
@@ -45,6 +51,8 @@ class SillyMolSpotterFilter(MoleculeHandler):
             std_method: SMILES/mol standardization method. Available: `canon`, `chembl`,
                 `papyrus`. Defaults to "chembl".
             n_jobs: number of jobs to run in parallel. Defaults to 1.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
         """
         self._spotters = self._get_spotters()
         self._standardize = standardize
@@ -54,6 +62,7 @@ class SillyMolSpotterFilter(MoleculeHandler):
         self._std_method = std_method.lower()
         self._kwargs = kwargs
         self._n_jobs = n_jobs
+        self._chunk_size = chunk_size
         super().__init__(from_smi)
 
     def _get_standardizer(self, std_method, from_smi=True, n_jobs=1, **kwargs):
@@ -110,6 +119,7 @@ class SillyMolSpotterFilter(MoleculeHandler):
                 show_progress=False,
                 backend="loky",
                 custom_desc="Converting to SMILES",
+                chunk_size=self._chunk_size,
             )
             smiles = applier()
 
@@ -121,6 +131,7 @@ class SillyMolSpotterFilter(MoleculeHandler):
             show_progress=False,
             backend="loky",
             custom_desc="Scoring molecules with SillyMolSpotter",
+            chunk_size=self._chunk_size,
         )
         results = applier()
 

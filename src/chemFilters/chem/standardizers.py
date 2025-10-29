@@ -38,6 +38,7 @@ class ChemStandardizer(MoleculeHandler):
         rdkit_loglevel: str = "warning",
         from_smi: bool = False,
         return_smi: bool = True,
+        chunk_size: int = None,
         **kwargs,
     ) -> None:
         """Initializes the ChemStandardizer class.
@@ -54,6 +55,8 @@ class ChemStandardizer(MoleculeHandler):
                 "warning".
             from_smi: if True, the standardizer will expect SMILES strings as input.
                 Defaults to False.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
             kwargs: additional keyword arguments to pass to the standardizer.
 
         Raises:
@@ -110,6 +113,7 @@ class ChemStandardizer(MoleculeHandler):
         self.rdkit_loglevel = rdkit_loglevel
         self.return_smi = return_smi
         self.method = method
+        self.chunk_size = chunk_size
         self.smi_out_func = partial(
             MoleculeHandler(from_smi=False, isomeric=isomeric)._output_smi
         )
@@ -140,6 +144,7 @@ class ChemStandardizer(MoleculeHandler):
                     stdin,
                     self._output_mol,
                     custom_desc="Parsing input SMILES",
+                    chunk_size=self.chunk_size,
                 )
             method_name = self.method if isinstance(self.method, str) else "custom"
             vals = self.pmap(
@@ -149,6 +154,7 @@ class ChemStandardizer(MoleculeHandler):
                 self.standardizer,
                 pickable=pickable,
                 custom_desc=f"Standardizing molecules ({method_name})",
+                chunk_size=self.chunk_size,
             )
             if self.return_smi and self.method != "canon":  # canon always returns smis
                 vals = self.pmap(
@@ -157,6 +163,7 @@ class ChemStandardizer(MoleculeHandler):
                     vals,
                     self.smi_out_func,
                     custom_desc="Converting to canonical SMILES",
+                    chunk_size=self.chunk_size,
                 )
         return vals
 
@@ -299,6 +306,7 @@ class InchiHandling(MoleculeHandler):
         progress: bool = False,
         rdkit_loglevel: str = "warning",
         from_smi: bool = False,
+        chunk_size: int = None,
     ) -> None:
         """Initialize the InchiHandling class.
 
@@ -311,6 +319,8 @@ class InchiHandling(MoleculeHandler):
                 "warning".
             from_smi: if True, the standardizer will expect SMILES strings as input.
                 Defaults to False.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
 
         Raises:
             ValueError: if the convert_to argument is not one of the three options.
@@ -326,6 +336,7 @@ class InchiHandling(MoleculeHandler):
         self.n_jobs = n_jobs
         self.progress = progress
         self.rdkit_loglevel = rdkit_loglevel
+        self.chunk_size = chunk_size
         super().__init__(from_smi)
 
     def __call__(self, stdin: list) -> list:
@@ -356,6 +367,7 @@ class InchiHandling(MoleculeHandler):
                 stdin,
                 self._output_mol,
                 custom_desc="Parsing molecules",
+                chunk_size=self.chunk_size,
             )
             vals = self.pmap(
                 self.n_jobs,
@@ -363,5 +375,6 @@ class InchiHandling(MoleculeHandler):
                 mols,
                 self.converter,
                 custom_desc=f"Converting to {convert_type}",
+                chunk_size=self.chunk_size,
             )
         return vals

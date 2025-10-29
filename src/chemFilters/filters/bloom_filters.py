@@ -37,6 +37,7 @@ class MolbloomFilters(MoleculeHandler):
         standardize: bool = False,
         std_method: str = "chembl",
         n_jobs=1,
+        chunk_size: int = None,
         **kwargs,
     ):
         """Initalize the MolbloomFilters class.
@@ -47,6 +48,8 @@ class MolbloomFilters(MoleculeHandler):
             std_method: SMILES/mol standardization method. Available: `canon`, `chembl`,
                 `papyrus`. Defaults to "chembl".
             n_jobs: number of jobs to run in parallel. Defaults to 1.
+            chunk_size: size of chunks for ParallelApplier. If None, auto-calculated.
+                Defaults to None.
         """
         self._catalogs = catalogs()
         self._ensure_filters_downloaded()
@@ -57,6 +60,7 @@ class MolbloomFilters(MoleculeHandler):
         self._std_method = std_method.lower()
         self._kwargs = kwargs
         self._n_jobs = n_jobs
+        self._chunk_size = chunk_size
         super().__init__(from_smi)
 
     def _get_standardizer(self, std_method: str, from_smi: bool, **kwargs):
@@ -107,6 +111,7 @@ class MolbloomFilters(MoleculeHandler):
                 show_progress=False,
                 backend="loky",
                 custom_desc="Converting molecules to SMILES",
+                chunk_size=self._chunk_size,
             )
             smiles = applier()
 
