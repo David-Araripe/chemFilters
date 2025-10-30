@@ -2,7 +2,6 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from job_tqdflex import ParallelApplier
 from rdkit import Chem
 from tqdm import tqdm
 
@@ -141,28 +140,10 @@ class CoreFilter:
         """Process a list of smiles in chunks."""
         smiles_chunks = self._get_chunks(smiles, chunksize)
         for chunk in smiles_chunks:
-            applier = ParallelApplier(
-                mol_from_smi,
-                chunk,
-                n_jobs=self.n_jobs,
-                show_progress=False,
-                backend="loky",
-                custom_desc="Parsing SMILES",
-                chunk_size=self.parallel_chunk_size,
-            )
-            mols = applier()
+            mols = [mol_from_smi(s) for s in chunk]
             if self.std_mols:
                 mols = self.molStandardizer(mols)
-            applier = ParallelApplier(
-                mol_to_smi,
-                mols,
-                n_jobs=self.n_jobs,
-                show_progress=False,
-                backend="loky",
-                custom_desc="Generating SMILES",
-                chunk_size=self.parallel_chunk_size,
-            )
-            smiles = applier()
+            smiles = [mol_to_smi(m) for m in mols]
 
             filtered_dfs = list()
             if self.toggle_rdkit_filter:

@@ -6,6 +6,7 @@ from typing import Callable, List, Union
 
 from chembl_structure_pipeline import standardizer as chembl_std
 from rdkit import Chem
+from tqdm import tqdm
 
 from ..logger import logger
 from .interface import MoleculeHandler
@@ -138,33 +139,38 @@ class ChemStandardizer(MoleculeHandler):
             pickable = True
         with rdkit_log_controller(self.rdkit_loglevel):
             if self._from_smi and self.method == "canon":
-                stdin = self.pmap(
-                    self.n_jobs,
-                    self.progress,
-                    stdin,
-                    self._output_mol,
-                    custom_desc="Parsing input SMILES",
-                    chunk_size=self.chunk_size,
+                stdin = (  # Too fast to parallelize; overhead dominates
+                    tqdm(stdin, desc="Parsing input SMILES") if self.progress else stdin
                 )
+                stdin = [self._output_mol(s) for s in stdin]
+
             method_name = self.method if isinstance(self.method, str) else "custom"
-            vals = self.pmap(
-                self.n_jobs,
-                self.progress,
-                stdin,
-                self.standardizer,
-                pickable=pickable,
-                custom_desc=f"Standardizing molecules ({method_name})",
-                chunk_size=self.chunk_size,
-            )
-            if self.return_smi and self.method != "canon":  # canon always returns smis
+
+            if self.method == "canon":
+                vals = (  # Canon method is too fast to parallelize; overhead dominates
+                    tqdm(stdin, desc=f"Standardizing molecules ({method_name})")
+                    if self.progress
+                    else stdin
+                )
+                vals = [self.standardizer(mol) for mol in vals]
+            else:
                 vals = self.pmap(
                     self.n_jobs,
                     self.progress,
-                    vals,
-                    self.smi_out_func,
-                    custom_desc="Converting to canonical SMILES",
+                    stdin,
+                    self.standardizer,
+                    pickable=pickable,
+                    custom_desc=f"Standardizing molecules ({method_name})",
                     chunk_size=self.chunk_size,
                 )
+
+            if self.return_smi and self.method != "canon":  # canon always returns smis
+                vals = (  # Too fast to parallelize; overhead dominates
+                    tqdm(vals, desc="Converting mols to SMILES")
+                    if self.progress
+                    else vals
+                )
+                vals = [self.smi_out_func(mol) for mol in vals]
         return vals
 
     def papyrusStandardizer(
@@ -361,14 +367,8 @@ class InchiHandling(MoleculeHandler):
             convert_type = "identifier"
 
         with rdkit_log_controller(self.rdkit_loglevel):
-            mols = self.pmap(
-                self.n_jobs,
-                False,
-                stdin,
-                self._output_mol,
-                custom_desc="Parsing molecules",
-                chunk_size=self.chunk_size,
-            )
+            # Too fast to parallelize; overhead dominates
+            mols = [self._output_mol(s) for s in stdin]
             vals = self.pmap(
                 self.n_jobs,
                 self.progress,
