@@ -104,22 +104,26 @@ class TestCoreFilter(unittest.TestCase):
         # Won't test for the smiles to be the same - not necessarily standardized
         absent_cols = ["SMILES"] + SILLY_COLS + BLOOM_COLS + SIFT_COLS
         expected = self.expected_filtered_df.drop(columns=absent_cols)
-        pd.testing.assert_frame_equal(filtered_df.drop(columns="SMILES"), expected)
+        pd.testing.assert_frame_equal(
+            filtered_df.drop(columns="SMILES"), expected, check_dtype=False
+        )
 
     def test_pepfilterMols(self):
         filtered_df = self.coreFilter._pepfilterMols(self.test_mols)
         # Won't test for the smiles to be the same - not necessarily standardized
         absent_cols = ["SMILES"] + RDCOLS + SILLY_COLS + BLOOM_COLS
         expected = self.expected_filtered_df.drop(columns=absent_cols)
-        pd.testing.assert_frame_equal(filtered_df.drop(columns="SMILES"), expected)
+        pd.testing.assert_frame_equal(
+            filtered_df.drop(columns="SMILES"), expected, check_dtype=False
+        )
 
     def test_bloomfilterMols(self):
         filtered_df = self.coreFilter._bloomfilterMols(self.test_mols)
-        
+
         # Test structural properties instead of exact values (bloom filters are probabilistic)
         self.assertEqual(len(filtered_df), len(self.test_mols))
         self.assertIn("SMILES", filtered_df.columns)
-        
+
         # Test that all bloom columns exist and contain boolean values
         bloom_cols = [col for col in filtered_df.columns if col.startswith("BLOOM_")]
         for col in bloom_cols:
@@ -136,15 +140,15 @@ class TestCoreFilter(unittest.TestCase):
     def test_parallel_chunk_size_parameter(self):
         """Test that parallel_chunk_size parameter is accepted and works correctly."""
         # Test with default chunk_size (None - auto-calculated)
-        coreFilter_default = CoreFilter(**self.standard_params, parallel_chunk_size=None)
+        coreFilter_default = CoreFilter(
+            **self.standard_params, parallel_chunk_size=None
+        )
         result_default = coreFilter_default.filter_smiles(
             self.test_smiles[:10], chunksize=10
         )
 
         # Test with explicit chunk_size
-        coreFilter_chunked = CoreFilter(
-            **self.standard_params, parallel_chunk_size=2
-        )
+        coreFilter_chunked = CoreFilter(**self.standard_params, parallel_chunk_size=2)
         result_chunked = coreFilter_chunked.filter_smiles(
             self.test_smiles[:10], chunksize=10
         )

@@ -167,24 +167,18 @@ class CoreFilter:
         """Filter with self.rdFilter."""
 
         def aggregate_str_vals(df, cols, match_type="string"):
-            """function to aggregate strings within the columns into the same row. It
-            takes into account nan values by replacing with empty strings, joining with
-            `; `, and replacing the resulting `; ` * ncols - 1 with nan.
+            """Aggregate strings within the columns into a single "; "-separated value
+            per row, skipping NaN values. Returns NaN for rows where all values are NaN.
 
-            If match_type is 'bool', it will return a boolean series with True if any"""
-            n_cols = len(cols)
+            If match_type is 'bool', returns a boolean series with True if any."""
             if match_type == "bool":
                 aggr_series = df.loc[:, cols].apply(lambda x: np.any(x), axis=1)
             else:
-                null_str = "; " * (
-                    n_cols - 1
-                )  # after join with ';', this is the null string
-                aggr_series = (
-                    df.loc[:, cols]
-                    .fillna("")
-                    .apply(lambda x: "; ".join(x), axis=1)
-                    .replace({null_str: np.nan})
+                aggr_series = df.loc[:, cols].apply(
+                    lambda row: "; ".join(v for v in row if pd.notna(v)),
+                    axis=1,
                 )
+                aggr_series = aggr_series.mask(aggr_series == "")
             return aggr_series
 
         rdfilt_df = self.rdFilter.get_flagging_df(mols, match_type=self.rdfilter_output)
