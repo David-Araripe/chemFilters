@@ -5,7 +5,13 @@ from typing import List, Union
 import numpy as np
 import pandas as pd
 from job_tqdflex import ParallelApplier
-from pepsift import PepSift, SiftLevel
+try:
+    from pepsift import PepSift, SiftLevel
+except ImportError:
+    raise ImportError(
+        "pepsift is required to use PeptideFilters. "
+        "Install it with: pip install 'chem-filters[allfilters]'"
+    )
 from rdkit import Chem
 
 from ..chem.interface import MoleculeHandler

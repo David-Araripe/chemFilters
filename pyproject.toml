@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm>=8", "wheel"]
+requires = ["setuptools>=80", "setuptools-scm[simple]>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -29,27 +29,32 @@ dependencies = [
   "numpy",
   "pandas",
   "rdkit >= 2023.03.1",
-  "pepsift",
   "chembl_structure_pipeline >= 1.2.0",
-  "molspotter",
-  "molbloom",
   "loguru",
   "matplotlib",
   "job-tqdflex >= 0.1.1",
 ]
 
 [project.optional-dependencies]
-full = [
+allfilters = [
+  "pepsift",
+  "molspotter",
+  "molbloom",
+]
+standardizers = [
   "papyrus_structure_pipeline",
   "molvs",
 ]
+full = [
+  "chem-filters[allfilters]",
+  "chem-filters[standardizers]",
+]
 dev = [
+  "chem-filters[full]",
   "pytest",
   "ruff",
   "isort",
   "black",
-  "papyrus_structure_pipeline",
-  "molvs",
 ]
 
 [project.scripts]
@@ -62,9 +67,6 @@ repository = "https://github.com/David-Araripe/chemFilters"
 
 [tool.setuptools]
 include-package-data = true
-
-[tool.setuptools.dynamic]
-version = { attr = "chemFilters.__version__" }
 
 [tool.setuptools_scm]
 write_to = "src/chemFilters/_version.py"

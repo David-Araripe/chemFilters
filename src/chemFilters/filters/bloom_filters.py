@@ -7,7 +7,13 @@ from typing import List, Union
 import numpy as np
 import pandas as pd
 from job_tqdflex import ParallelApplier
-from molbloom import _DEFAULT_PATH, _load_filter, buy, catalogs
+try:
+    from molbloom import _DEFAULT_PATH, _load_filter, buy, catalogs
+except ImportError:
+    raise ImportError(
+        "molbloom is required to use MolbloomFilters. "
+        "Install it with: pip install 'chem-filters[allfilters]'"
+    )
 from rdkit import Chem
 
 from ..chem.interface import MoleculeHandler

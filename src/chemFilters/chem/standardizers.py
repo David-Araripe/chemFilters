@@ -94,17 +94,16 @@ class ChemStandardizer(MoleculeHandler):
                     self.standardizer = partial(self.papyrusStandardizer, **kwargs)
                 else:
                     raise ImportError(
-                        "Optional dependency not found. Please install it by running:\n"
-                        "python -m pip install git+"
-                        "https://github.com/OlivierBeq/Papyrus_structure_pipeline.git"
+                        "papyrus_structure_pipeline is required for method='papyrus'. "
+                        "Install it with: pip install 'chem-filters[standardizers]'"
                     )
             elif method.lower() == "molvs":
                 if find_spec("molvs"):
                     self.standardizer = partial(self.molvsStandardizer, **kwargs)
                 else:
                     raise ImportError(
-                        "Optional dependency not found. Please install it by running:\n"
-                        "python -m pip install molvs"
+                        "molvs is required for method='molvs'. "
+                        "Install it with: pip install 'chem-filters[standardizers]'"
                     )
             else:
                 raise ValueError(f"Invalid SMILES standardizing method: {method}")

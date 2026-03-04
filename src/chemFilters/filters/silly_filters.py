@@ -6,7 +6,13 @@ from typing import List, Union
 import numpy as np
 import pandas as pd
 from job_tqdflex import ParallelApplier
-from molspotter import SillyMolSpotter
+try:
+    from molspotter import SillyMolSpotter
+except ImportError:
+    raise ImportError(
+        "molspotter is required to use SillyMolSpotterFilter. "
+        "Install it with: pip install 'chem-filters[allfilters]'"
+    )
 from rdkit import Chem
 
 from chemFilters.chem.standardizers import ChemStandardizer
