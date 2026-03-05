@@ -22,7 +22,7 @@ A collection of chemical filters, with some support for data visualization and a
 
 ## Overview:
 
-The different filtering classes are implemented with a similar API, where `get_flagging/scoring_df` run all the filters available for that filtering class and return a dataframe that used to investigate the filters. In case of the RdkitFilters implementation, a few visualization methods are available to render the molecules, substructure matches, and molecular grids.
+The different filtering classes are implemented with a similar API, where `get_(flagging|scoring)_df` run all the filters available for that class and return a dataframe with all the results. In case of the RdkitFilters implementation, a few visualization methods are available to render the molecules, substructure matches, and molecular grids.
 
 See available filters and visualization methods below:
 
@@ -43,8 +43,33 @@ See available filters and visualization methods below:
 
 ## Installation
 
+The base package includes RDKit filters and visualization:
+
 ```bash
-python -m pip install git+https://github.com/David-Araripe/chemFilters.git
+pip install chem-filters
+```
+
+Some features require additional dependencies, available as extras:
+
+| Extra           | Includes                                    | Required for                                      |
+|-----------------|---------------------------------------------|---------------------------------------------------|
+| `allfilters`    | `pepsift`, `molspotter`, `molbloom`         | Peptide, silly molecule, and purchasability filters |
+| `standardizers` | `papyrus_structure_pipeline`, `molvs`       | Molecular standardization                         |
+| `full`          | All of the above                            | All features                                      |
+
+```bash
+# Install with all filters
+pip install "chem-filters[allfilters]"
+
+# Install everything
+pip install "chem-filters[full]"
+```
+
+Alternatively, install directly from the GitHub repository:
+
+```bash
+pip install git+https://github.com/David-Araripe/chemFilters.git
+pip install "chem-filters[full] @ git+https://github.com/David-Araripe/chemFilters.git"
 ```
 
 ## Filtering Compounds
@@ -177,7 +202,7 @@ chemFilter = RdkitFilters(filter_type="NIH")
 filter_names, description, substructs = chemFilter.filter_mols(mols)
 
 plotter = MolPlotter(
-    from_smi=False, font_size=20, size=(350, 350), font_name="Telex-Regular"
+    from_smi=False, label_font_size=20, size=(350, 350), font_name="Telex-Regular"
 )
 img = plotter.render_with_colored_matches(
     mols[0],
