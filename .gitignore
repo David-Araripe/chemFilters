@@ -1,3 +1,7 @@
+# OS / IDE
+.DS_Store
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -25,7 +29,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-src/chemFilters/_verson.py
+src/chemFilters/_version.py
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
