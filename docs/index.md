@@ -1,15 +1,16 @@
 # chemFilters
 
 ```{raw} html
-<div style="text-align: center;">
-  <img src="_static/logo-light.svg" alt="chemFilters logo" width="360" class="logo-light">
-  <img src="_static/logo-dark.svg" alt="chemFilters logo" width="360" class="logo-dark">
+<div style="text-align: center; margin-bottom: 1.5em;">
+  <img src="_static/logo-light.svg" alt="chemFilters logo" width="300" class="logo-light">
+  <img src="_static/logo-dark.svg" alt="chemFilters logo" width="300" class="logo-dark">
+  <p style="font-size: 1.2em; font-weight: bold; margin-top: 0.5em;">
+    Flag issues, standardize, and visualize molecular structures with ease.
+  </p>
 </div>
 ```
 
-**Flag issues, standardize, and visualize molecular structures with ease.**
-
-chemFilters is a Python package wrapping several chemical structure filtering, rendering,
+A Python package wrapping several chemical structure filtering, rendering,
 and standardization utilities.
 
 ## Supported filters

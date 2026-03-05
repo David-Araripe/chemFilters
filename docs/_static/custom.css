@@ -24,6 +24,11 @@ body[data-theme="dark"] img.logo-dark {
     }
 }
 
+/* Hide the H1 on the index page — the sidebar logo already identifies the project */
+#chemfilters > h1 {
+    display: none;
+}
+
 /* Checkerboard background for showing transparent PNGs */
 .bg-checkerboard {
     background-image:
