@@ -11,9 +11,12 @@ from chemFilters import MolbloomFilters
 class TestMolbloomFilters(unittest.TestCase):
     def setUp(self) -> None:
         self.testroot = Path(__file__).parent
-        self.filterFunc = MolbloomFilters(
-            from_smi=True, standardize=True, std_method="chembl", n_jobs=1
-        )
+        try:
+            self.filterFunc = MolbloomFilters(
+                from_smi=True, standardize=True, std_method="chembl", n_jobs=1
+            )
+        except MemoryError:
+            self.skipTest("Not enough memory to load bloom filters")
         self.test_smiles = (
             (self.testroot / "resources/testSmiles.smi").read_text().splitlines()
         )
@@ -53,24 +56,30 @@ class TestMolbloomFilters(unittest.TestCase):
             self.assertTrue(result_df[col].dtype == bool)
 
     def test_get_flagging_df_variations(self):
-        filterTT = MolbloomFilters(  # Filter true true
-            from_smi=True, standardize=True, std_method="chembl", n_jobs=1
-        ).get_flagging_df(self.test_smiles)
-        filterTF = MolbloomFilters(
-            from_smi=True, standardize=False, std_method="chembl", n_jobs=1
-        ).get_flagging_df(self.test_smiles)
-        filterFT = MolbloomFilters(
-            from_smi=False, standardize=True, std_method="chembl", n_jobs=1
-        ).get_flagging_df(self.test_mols)
-        filterFF = MolbloomFilters(
-            from_smi=False, standardize=False, std_method="chembl", n_jobs=1
-        ).get_flagging_df(self.test_mols)
+        try:
+            filterTT = MolbloomFilters(  # Filter true true
+                from_smi=True, standardize=True, std_method="chembl", n_jobs=1
+            ).get_flagging_df(self.test_smiles)
+            filterTF = MolbloomFilters(
+                from_smi=True, standardize=False, std_method="chembl", n_jobs=1
+            ).get_flagging_df(self.test_smiles)
+            filterFT = MolbloomFilters(
+                from_smi=False, standardize=True, std_method="chembl", n_jobs=1
+            ).get_flagging_df(self.test_mols)
+            filterFF = MolbloomFilters(
+                from_smi=False, standardize=False, std_method="chembl", n_jobs=1
+            ).get_flagging_df(self.test_mols)
+        except MemoryError:
+            self.skipTest("Not enough memory to load bloom filters")
         pd.testing.assert_frame_equal(filterTT, filterTF)
         pd.testing.assert_frame_equal(filterTT, filterFT)
         pd.testing.assert_frame_equal(filterTT, filterFF)
 
     def test_get_flagging_df_no_standardizer(self):
-        bloom_no_std = MolbloomFilters(from_smi=True, standardize=False)
+        try:
+            bloom_no_std = MolbloomFilters(from_smi=True, standardize=False)
+        except MemoryError:
+            self.skipTest("Not enough memory to load bloom filters")
         result_df = bloom_no_std.get_flagging_df(self.test_smiles)
 
         # Test structural properties instead of exact comparison
