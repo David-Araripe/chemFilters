@@ -56,6 +56,12 @@ dev = [
   "isort",
   "black",
 ]
+docs = [
+  "sphinx>=7.0",
+  "furo",
+  "myst-parser",
+  "sphinx-autodoc-typehints",
+]
 
 [project.scripts]
 chemfilters = "chemFilters.cli:main"
@@ -63,7 +69,7 @@ chemfilters = "chemFilters.cli:main"
 [project.urls]
 homepage = "https://github.com/David-Araripe/chemFilters"
 repository = "https://github.com/David-Araripe/chemFilters"
-# documentation = "https://readthedocs.org" TODO
+documentation = "https://chem-filters.readthedocs.io"
 
 [tool.setuptools]
 include-package-data = true
