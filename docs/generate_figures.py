@@ -171,7 +171,7 @@ def generate_colored_matches():
     _, descriptions, substructs = chemFilter.filter_mols(MOLS)
 
     plotter = MolPlotter(
-        from_smi=False, mol_font_size=20, size=(350, 350), font_name=FONT
+        from_smi=False, label_font_size=20, size=(350, 350), font_name=FONT
     )
     img = plotter.render_with_colored_matches(
         MOLS[0],
@@ -298,7 +298,7 @@ def generate_cmap_comparison():
 
     for ax, cmap_name in zip(axes, cmaps):
         plotter = MolPlotter(
-            from_smi=False, mol_font_size=20, size=(350, 350), font_name=FONT
+            from_smi=False, label_font_size=20, size=(350, 350), font_name=FONT
         )
         img = plotter.render_with_colored_matches(
             MOLS[0],

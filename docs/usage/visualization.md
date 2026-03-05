@@ -128,7 +128,7 @@ chemFilter = RdkitFilters(filter_type="NIH")
 filter_names, descriptions, substructs = chemFilter.filter_mols(mols)
 
 plotter = MolPlotter(
-    from_smi=False, mol_font_size=20, size=(350, 350), font_name="Telex-Regular"
+    from_smi=False, label_font_size=20, size=(350, 350), font_name="Telex-Regular"
 )
 img = plotter.render_with_colored_matches(
     mols[0],
