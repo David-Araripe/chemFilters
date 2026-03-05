@@ -8,6 +8,7 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Workflow](https://github.com/David-Araripe/chemFilters/actions/workflows/ci.yml/badge.svg?event=push)](https://github.com/David-Araripe/chemFilters/actions)
+[![Docs](https://img.shields.io/readthedocs/chem-filters?logo=readthedocs&logoColor=white)](https://chem-filters.readthedocs.io/en/latest/)
 
 </div>
 
@@ -29,6 +30,7 @@ See available filters and visualization methods below:
 - [chemFilters](#chemfilters)
   - [Overview:](#overview)
   - [Installation](#installation)
+  - [Documentation:](#documentation)
   - [Filtering Compounds](#filtering-datasets)
     - [RdkitFilters](#rdkitfilters)
     - [Purchasability filters](#purchasability-filters)
@@ -71,6 +73,10 @@ Alternatively, install directly from the GitHub repository:
 pip install git+https://github.com/David-Araripe/chemFilters.git
 pip install "chem-filters[full] @ git+https://github.com/David-Araripe/chemFilters.git"
 ```
+
+## Documentation
+
+chemFilters' documentation is available on readthedocs (RTD) [here](https://chem-filters.readthedocs.io/en/latest/)!
 
 ## Filtering Compounds
 
